@@ -1,0 +1,57 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+	* {
+		box-sizing: border-box;
+	}
+	body {
+		font-family: 'DM Sans', sans-serif;
+	}
+	h1, h2, h3, h4, h5, h6 {
+		font-family: 'Syne', sans-serif;
+	}
+}
+
+@layer components {
+	.btn-primary {
+		@apply bg-primary-500 hover:bg-primary-600 text-white font-semibold px-5 py-2.5 rounded-lg transition-all duration-200 inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed;
+	}
+	.btn-secondary {
+		@apply border border-primary-500 text-primary-600 hover:bg-primary-50 font-semibold px-5 py-2.5 rounded-lg transition-all duration-200 inline-flex items-center gap-2;
+	}
+	.btn-accent {
+		@apply bg-accent-500 hover:bg-accent-600 text-white font-semibold px-5 py-2.5 rounded-lg transition-all duration-200 inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed;
+	}
+	.btn-ghost {
+		@apply text-gray-600 hover:bg-gray-100 font-medium px-4 py-2 rounded-lg transition-all duration-200 inline-flex items-center gap-2;
+	}
+	.card {
+		@apply bg-white rounded-xl shadow-card p-6;
+	}
+	.input-field {
+		@apply w-full border border-gray-200 rounded-lg px-4 py-2.5 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-transparent transition-all duration-200 bg-white;
+	}
+	.label {
+		@apply block text-sm font-medium text-gray-700 mb-1.5;
+	}
+	.badge-recue {
+		@apply bg-blue-100 text-blue-700 text-xs font-semibold px-2.5 py-1 rounded-full;
+	}
+	.badge-en_cours {
+		@apply bg-amber-100 text-amber-700 text-xs font-semibold px-2.5 py-1 rounded-full;
+	}
+	.badge-traitee {
+		@apply bg-emerald-100 text-emerald-700 text-xs font-semibold px-2.5 py-1 rounded-full;
+	}
+	.badge-disponible {
+		@apply bg-primary-100 text-primary-700 text-xs font-semibold px-2.5 py-1 rounded-full;
+	}
+	.badge-rejetee {
+		@apply bg-red-100 text-red-700 text-xs font-semibold px-2.5 py-1 rounded-full;
+	}
+	.badge-escaladee {
+		@apply bg-orange-100 text-orange-700 text-xs font-semibold px-2.5 py-1 rounded-full;
+	}
+}

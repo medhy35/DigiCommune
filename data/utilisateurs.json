@@ -1,0 +1,38 @@
+{
+  "agents": [
+    {
+      "id": "agent_001",
+      "nom": "Diakité",
+      "prenom": "Awa",
+      "role": "agent",
+      "email": "awa.diakite@mairie-cocody.ci",
+      "avatar": "AD"
+    },
+    {
+      "id": "agent_002",
+      "nom": "Coulibaly",
+      "prenom": "Lassina",
+      "role": "agent",
+      "email": "lassina.coulibaly@mairie-cocody.ci",
+      "avatar": "LC"
+    }
+  ],
+  "superviseurs": [
+    {
+      "id": "sup_001",
+      "nom": "Traoré",
+      "prenom": "Kadiatou",
+      "role": "superviseur",
+      "email": "kadiatou.traore@mairie-cocody.ci",
+      "avatar": "KT"
+    }
+  ],
+  "maire": {
+    "id": "maire_001",
+    "nom": "Gnangoran",
+    "prenom": "Jean-Marc",
+    "role": "maire",
+    "email": "maire@mairie-cocody.ci",
+    "avatar": "JG"
+  }
+}

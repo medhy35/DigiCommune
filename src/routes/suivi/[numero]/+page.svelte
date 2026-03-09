@@ -1,0 +1,137 @@
+<script>
+	import { onMount } from 'svelte';
+	import { page } from '$app/stores';
+	import Timeline from '$lib/components/Timeline.svelte';
+	import StatusBadge from '$lib/components/StatusBadge.svelte';
+	import { TYPE_ACTE_LABELS, TYPE_ACTE_ICONS, CONCERNANT_LABELS, MODE_RECEPTION_LABELS, formatDate, formatDateTime } from '$lib/utils/helpers.js';
+
+	let demande = null;
+	let loading = true;
+	let error = null;
+
+	$: numero = $page.params.numero;
+
+	onMount(async () => {
+		const res = await fetch(`/api/demandes/${numero}`);
+		if (res.ok) {
+			demande = await res.json();
+		} else {
+			error = 'Demande introuvable. Vérifiez votre numéro de dossier.';
+		}
+		loading = false;
+	});
+</script>
+
+<svelte:head>
+	<title>Suivi {numero} – CiviCI</title>
+</svelte:head>
+
+<header class="bg-white border-b border-gray-100 shadow-sm">
+	<div class="max-w-2xl mx-auto px-4 py-3 flex items-center gap-3">
+		<a href="/suivi" class="text-gray-400 hover:text-gray-600">
+			<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+			</svg>
+		</a>
+		<div class="flex items-center gap-2">
+			<div class="w-7 h-7 bg-primary-500 rounded-lg flex items-center justify-center">
+				<span class="text-white font-syne font-bold text-xs">C</span>
+			</div>
+			<span class="font-syne font-semibold text-primary-600">CiviCI</span>
+		</div>
+		<span class="text-gray-300">|</span>
+		<span class="font-mono text-sm text-gray-600">{numero}</span>
+	</div>
+</header>
+
+<main class="max-w-2xl mx-auto px-4 py-8">
+	{#if loading}
+		<div class="flex flex-col items-center justify-center py-24 gap-4 text-gray-400">
+			<svg class="w-10 h-10 animate-spin" fill="none" viewBox="0 0 24 24">
+				<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+				<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+			</svg>
+			<p>Chargement...</p>
+		</div>
+	{:else if error}
+		<div class="text-center py-16">
+			<div class="text-5xl mb-4">🔍</div>
+			<h2 class="font-syne font-bold text-xl text-gray-700 mb-2">Demande introuvable</h2>
+			<p class="text-gray-500 mb-6">{error}</p>
+			<a href="/suivi" class="btn-primary">Réessayer</a>
+		</div>
+	{:else if demande}
+		<!-- Header demande -->
+		<div class="card mb-4">
+			<div class="flex items-start justify-between gap-4">
+				<div>
+					<p class="text-xs text-gray-400 uppercase tracking-wide mb-1">Numéro de dossier</p>
+					<h1 class="font-mono font-bold text-2xl text-gray-800">{demande.id}</h1>
+					<p class="text-sm text-gray-500 mt-1">Soumis le {formatDateTime(demande.created_at)}</p>
+				</div>
+				<div class="text-right">
+					<StatusBadge {demande} />
+					<p class="text-3xl mt-2">{TYPE_ACTE_ICONS[demande.type_acte]}</p>
+				</div>
+			</div>
+		</div>
+
+		<!-- Info demande -->
+		<div class="card mb-4">
+			<h2 class="font-syne font-semibold text-gray-700 mb-3">Détails de la demande</h2>
+			<dl class="space-y-2 text-sm">
+				<div class="flex justify-between py-1.5 border-b border-gray-50">
+					<dt class="text-gray-500">Type d'acte</dt>
+					<dd class="font-medium text-gray-800">{TYPE_ACTE_LABELS[demande.type_acte]}</dd>
+				</div>
+				<div class="flex justify-between py-1.5 border-b border-gray-50">
+					<dt class="text-gray-500">Concernant</dt>
+					<dd class="font-medium text-gray-800">{CONCERNANT_LABELS[demande.concernant]}</dd>
+				</div>
+				<div class="flex justify-between py-1.5 border-b border-gray-50">
+					<dt class="text-gray-500">Personne concernée</dt>
+					<dd class="font-medium text-gray-800">{demande.personne_concernee.prenom} {demande.personne_concernee.nom}</dd>
+				</div>
+				<div class="flex justify-between py-1.5 border-b border-gray-50">
+					<dt class="text-gray-500">Nombre de copies</dt>
+					<dd class="font-medium text-gray-800">{demande.copies}</dd>
+				</div>
+				<div class="flex justify-between py-1.5">
+					<dt class="text-gray-500">Mode de réception</dt>
+					<dd class="font-medium text-gray-800">{MODE_RECEPTION_LABELS[demande.mode_reception]}</dd>
+				</div>
+			</dl>
+		</div>
+
+		<!-- Timeline -->
+		<div class="card mb-4">
+			<h2 class="font-syne font-semibold text-gray-700 mb-4">Avancement de votre dossier</h2>
+			<Timeline historique={demande.historique} statut={demande.statut} />
+		</div>
+
+		<!-- Message mode retrait -->
+		{#if demande.statut === 'disponible' && demande.mode_reception === 'retrait'}
+			<div class="bg-primary-50 border border-primary-200 rounded-xl p-4 flex gap-3">
+				<span class="text-2xl">🏛️</span>
+				<div>
+					<p class="font-semibold text-primary-800">Votre acte est prêt !</p>
+					<p class="text-sm text-primary-700 mt-1">Venez retirer votre acte à la mairie muni de votre CNI ou d'une pièce d'identité valide.</p>
+				</div>
+			</div>
+		{/if}
+
+		{#if demande.statut === 'disponible' && demande.mode_reception === 'whatsapp'}
+			<div class="bg-primary-50 border border-primary-200 rounded-xl p-4 flex gap-3">
+				<span class="text-2xl">📱</span>
+				<div>
+					<p class="font-semibold text-primary-800">Votre acte a été envoyé !</p>
+					<p class="text-sm text-primary-700 mt-1">Le PDF de votre acte a été envoyé sur votre WhatsApp au {demande.demandeur.telephone}.</p>
+				</div>
+			</div>
+		{/if}
+
+		<div class="mt-4 text-center">
+			<a href="/" class="text-sm text-gray-400 hover:text-primary-600 transition-colors">← Retour à l'accueil</a>
+		</div>
+	{/if}
+</main>
