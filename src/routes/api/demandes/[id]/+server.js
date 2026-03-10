@@ -48,6 +48,12 @@ export async function PATCH({ params, request }) {
 			note: `Réassignée à ${body.agent_id}`,
 			par: body.par || 'superviseur'
 		});
+		createNotification(
+			'agent',
+			'nouvelle_demande',
+			`Dossier réassigné — ${params.id} vous a été confié par le superviseur`,
+			params.id
+		);
 	}
 
 	// Handle escalade
@@ -83,6 +89,13 @@ export async function PATCH({ params, request }) {
 				note: 'Escalade résolue',
 				par: body.par || 'superviseur'
 			});
+			// Notifier l'agent que son escalade a été traitée
+			createNotification(
+				'agent',
+				'info',
+				`Escalade résolue — dossier ${params.id} a été traité par le superviseur`,
+				params.id
+			);
 		}
 	}
 

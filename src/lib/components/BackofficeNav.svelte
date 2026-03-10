@@ -1,5 +1,5 @@
 <script>
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { authRole, ROLE_LABELS, ROLE_COLORS } from '$lib/stores/auth.js';
@@ -20,8 +20,17 @@
 	$: roleColor = ROLE_COLORS[role] || 'bg-gray-100 text-gray-600';
 	$: unreadCount = notifications.filter(n => !n.read).length;
 
+	let pollInterval;
+
 	onMount(async () => {
-		if (role) await fetchNotifications();
+		if (role) {
+			await fetchNotifications();
+			pollInterval = setInterval(fetchNotifications, 30000);
+		}
+	});
+
+	onDestroy(() => {
+		if (pollInterval) clearInterval(pollInterval);
 	});
 
 	async function fetchNotifications() {
