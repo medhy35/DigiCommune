@@ -1,0 +1,22 @@
+{
+  "agent": {
+    "sla_heures": 48,
+    "notifications": {
+      "nouvelle_demande": true,
+      "escalade_resolue": true,
+      "reassignation": true
+    }
+  },
+  "superviseur": {
+    "seuil_escalades_alerte": 3,
+    "notifications": {
+      "nouvelle_escalade": true
+    }
+  },
+  "maire": {
+    "periode_dashboard": "mois",
+    "notifications": {
+      "cas_critique": true
+    }
+  }
+}

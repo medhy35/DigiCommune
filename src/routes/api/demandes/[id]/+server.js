@@ -70,6 +70,17 @@ export async function PATCH({ params, request }) {
 		);
 	}
 
+	// Note interne sans changement de statut
+	if (body.note_interne) {
+		demande.historique.push({
+			statut: demande.statut,
+			date: now,
+			note: body.note_interne,
+			par: resolveUserName(body.par) || 'agent',
+			type: 'note'
+		});
+	}
+
 	// Valider paiement en mairie
 	if (body.paiement_valide) {
 		demande.paiement = { ...demande.paiement, statut: 'paye', mode: 'mairie' };

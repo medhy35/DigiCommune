@@ -3,7 +3,8 @@
 	import { page } from '$app/stores';
 	import StatusBadge from '$lib/components/StatusBadge.svelte';
 	import DemandeDetailPanel from '$lib/components/DemandeDetailPanel.svelte';
-	import { TYPE_ACTE_LABELS, TYPE_ACTE_ICONS, CONCERNANT_LABELS, MODE_RECEPTION_LABELS, formatDate, formatDateTime, timeAgo, isEscaladee } from '$lib/utils/helpers.js';
+	import { TYPE_ACTE_LABELS, TYPE_ACTE_ICONS, CONCERNANT_LABELS, MODE_RECEPTION_LABELS, formatDate, formatDateTime, timeAgo, isEscaladee, isSLADepassee } from '$lib/utils/helpers.js';
+	import { toast } from '$lib/stores/toast.js';
 
 	let allDemandes = [];
 	let utilisateurs = null;
@@ -73,8 +74,31 @@
 		});
 		if (res.ok) {
 			await loadData();
+			toast('Escalade résolue');
 		}
 		saving = false;
+	}
+
+	function exportCSV() {
+		const headers = ['ID', 'Statut', 'Type acte', 'Demandeur', 'Téléphone', 'Agent', 'Créée le', 'Dernière MàJ', 'Paiement'];
+		const rows = allDemandes.map(d => [
+			d.id,
+			d.statut,
+			d.type_acte,
+			`${d.demandeur.prenom} ${d.demandeur.nom}`,
+			d.demandeur.telephone,
+			agentName(d.agent_id),
+			new Date(d.created_at).toLocaleDateString('fr-FR'),
+			new Date(d.updated_at).toLocaleDateString('fr-FR'),
+			d.paiement?.statut || ''
+		]);
+		const csv = [headers, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+		const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+		const a = document.createElement('a');
+		a.href = URL.createObjectURL(blob);
+		a.download = `civici-demandes-${new Date().toISOString().slice(0,10)}.csv`;
+		a.click();
+		toast('Export CSV téléchargé', 'info');
 	}
 
 	async function escaladerMaire() {
@@ -98,6 +122,7 @@
 			await loadData();
 			showEscaladeMaireModal = false;
 			escaladeMaireMotif = '';
+			toast('Dossier escaladé au Maire', 'warning');
 		}
 		saving = false;
 	}
@@ -114,6 +139,7 @@
 			await loadData();
 			showReassignModal = false;
 			reassignAgentId = '';
+			toast('Dossier réassigné avec succès');
 		}
 		saving = false;
 	}
@@ -125,9 +151,20 @@
 
 <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6">
 	<!-- Stats -->
-	<div class="mb-6">
-		<h1 class="font-syne font-bold text-2xl text-gray-800 mb-1">Supervision — Toutes les demandes</h1>
-		<p class="text-gray-500 text-sm">Vue d'ensemble de la commune. {stats.escalades > 0 ? `⚠️ ${stats.escalades} escalade(s) en attente.` : ''}</p>
+	<div class="mb-6 flex items-start justify-between gap-4">
+		<div>
+			<h1 class="font-syne font-bold text-2xl text-gray-800 mb-1">Supervision — Toutes les demandes</h1>
+			<p class="text-gray-500 text-sm">Vue d'ensemble de la commune. {stats.escalades > 0 ? `⚠️ ${stats.escalades} escalade(s) en attente.` : ''}</p>
+		</div>
+		<button
+			on:click={exportCSV}
+			class="flex-shrink-0 flex items-center gap-2 px-4 py-2 text-sm font-medium border border-gray-200 text-gray-600 hover:bg-gray-50 rounded-xl transition-all"
+		>
+			<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+			</svg>
+			Exporter CSV
+		</button>
 	</div>
 
 	<div class="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6">
@@ -207,6 +244,11 @@
 							{#if isEscaladee(demande)}
 								<div class="mt-2 text-xs text-orange-700 bg-orange-100 rounded-lg px-2.5 py-1 truncate">
 									⚠️ {demande.escalade.motif}
+								</div>
+							{/if}
+							{#if isSLADepassee(demande)}
+								<div class="mt-1 text-xs font-semibold text-red-600 bg-red-50 rounded-lg px-2.5 py-1">
+									🕐 SLA dépassé
 								</div>
 							{/if}
 						</button>

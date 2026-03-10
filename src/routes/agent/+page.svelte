@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import StatusBadge from '$lib/components/StatusBadge.svelte';
-	import { TYPE_ACTE_LABELS, TYPE_ACTE_ICONS, formatDateTime, timeAgo, isEscaladee } from '$lib/utils/helpers.js';
+	import { TYPE_ACTE_LABELS, TYPE_ACTE_ICONS, formatDateTime, timeAgo, isEscaladee, isSLADepassee } from '$lib/utils/helpers.js';
 
 	let demandes = [];
 	let loading = true;
@@ -134,6 +134,9 @@
 										<span class="badge-escaladee">
 											⚠️ Escalade {demande.escalade.level}
 										</span>
+									{/if}
+									{#if isSLADepassee(demande)}
+										<span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-red-100 text-red-600">🕐 SLA dépassé</span>
 									{/if}
 								</div>
 								<p class="text-sm text-gray-600 mt-0.5 truncate">

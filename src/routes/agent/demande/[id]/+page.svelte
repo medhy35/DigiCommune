@@ -6,6 +6,7 @@
 	import StatusBadge from '$lib/components/StatusBadge.svelte';
 	import { formatDateTime, isEscaladee } from '$lib/utils/helpers.js';
 	import { downloadActePDF } from '$lib/utils/pdf.js';
+	import { toast } from '$lib/stores/toast.js';
 
 	let demande = null;
 	let commune = null;
@@ -18,6 +19,15 @@
 	let showEscaladeModal = false;
 	let escaladeMotif = '';
 	let escaladeError = '';
+
+	// Rejet modal
+	let showRejetModal = false;
+	let rejetMotif = '';
+	let rejetError = '';
+
+	// Note interne
+	let noteTexte = '';
+	let savingNote = false;
 
 	// Envoi WhatsApp simulation
 	let whatsappSent = false;
@@ -42,7 +52,11 @@
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({ statut: newStatut, note, par: 'agent_001' })
 		});
-		if (res.ok) demande = await res.json();
+		if (res.ok) {
+			demande = await res.json();
+			const labels = { en_cours: 'Dossier pris en charge', traitee: 'Dossier marqué traité', disponible: 'Dossier disponible' };
+			toast(labels[newStatut] || 'Statut mis à jour');
+		}
 		saving = false;
 	}
 
@@ -53,8 +67,41 @@
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({ paiement_valide: true, par: 'agent_001' })
 		});
-		if (res.ok) demande = await res.json();
+		if (res.ok) { demande = await res.json(); toast('Paiement encaissé confirmé'); }
 		saving = false;
+	}
+
+	async function rejeter() {
+		if (!rejetMotif.trim()) { rejetError = 'Le motif est obligatoire.'; return; }
+		saving = true;
+		const res = await fetch(`/api/demandes/${id}`, {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ statut: 'rejetee', note: rejetMotif, par: 'agent_001' })
+		});
+		if (res.ok) {
+			demande = await res.json();
+			showRejetModal = false;
+			rejetMotif = '';
+			toast('Demande rejetée', 'warning');
+		}
+		saving = false;
+	}
+
+	async function ajouterNote() {
+		if (!noteTexte.trim()) return;
+		savingNote = true;
+		const res = await fetch(`/api/demandes/${id}`, {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ note_interne: noteTexte, par: 'agent_001' })
+		});
+		if (res.ok) {
+			demande = await res.json();
+			noteTexte = '';
+			toast('Note ajoutée à l\'historique', 'info');
+		}
+		savingNote = false;
 	}
 
 	async function escalader() {
@@ -81,6 +128,7 @@
 			demande = await res.json();
 			showEscaladeModal = false;
 			escaladeMotif = '';
+			toast('Escalade envoyée au superviseur', 'warning');
 		}
 		saving = false;
 	}
@@ -90,9 +138,10 @@
 		generatingPdf = true;
 		try {
 			await downloadActePDF(demande, commune);
+			toast('PDF généré avec succès');
 		} catch (e) {
 			console.error('PDF error:', e);
-			alert('Erreur lors de la génération du PDF. Veuillez réessayer.');
+			toast('Erreur lors de la génération du PDF', 'error');
 		}
 		generatingPdf = false;
 	}
@@ -102,6 +151,7 @@
 		setTimeout(() => {
 			sendingWhatsapp = false;
 			whatsappSent = true;
+			toast('Acte envoyé par WhatsApp');
 		}, 1500);
 	}
 
@@ -254,20 +304,56 @@
 				{/if}
 			</div>
 
-			<!-- Escalade -->
+			<!-- Note interne -->
+			{#if demande.statut !== 'rejetee'}
+				<div class="card">
+					<h3 class="font-syne font-semibold text-gray-700 mb-2">Note interne</h3>
+					<textarea
+						bind:value={noteTexte}
+						rows="3"
+						class="input-field text-sm resize-none w-full"
+						placeholder="Ajouter une note sans changer le statut..."
+					></textarea>
+					<button
+						on:click={ajouterNote}
+						class="mt-2 w-full px-4 py-2 border border-gray-200 text-gray-600 hover:bg-gray-50 font-medium text-sm rounded-lg transition-all flex items-center justify-center gap-2"
+						disabled={savingNote || !noteTexte.trim()}
+					>
+						{#if savingNote}
+							<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+								<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+								<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+							</svg>
+						{/if}
+						Ajouter la note
+					</button>
+				</div>
+			{/if}
+
+			<!-- Escalade + Rejeter -->
 			{#if !isEscaladee(demande) && demande.statut !== 'rejetee' && demande.statut !== 'disponible'}
 				<div class="card">
-					<h3 class="font-syne font-semibold text-gray-700 mb-3">Escalader</h3>
-					<p class="text-xs text-gray-500 mb-3">En cas de problème nécessitant l'intervention d'un superviseur.</p>
-					<button
-						on:click={() => showEscaladeModal = true}
-						class="w-full px-4 py-2.5 border-2 border-orange-300 text-orange-700 hover:bg-orange-50 font-semibold text-sm rounded-lg transition-all flex items-center justify-center gap-2"
-					>
-						<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
-						</svg>
-						Escalader au superviseur
-					</button>
+					<h3 class="font-syne font-semibold text-gray-700 mb-3">Actions avancées</h3>
+					<div class="space-y-2">
+						<button
+							on:click={() => showEscaladeModal = true}
+							class="w-full px-4 py-2.5 border-2 border-orange-300 text-orange-700 hover:bg-orange-50 font-semibold text-sm rounded-lg transition-all flex items-center justify-center gap-2"
+						>
+							<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+							</svg>
+							Escalader au superviseur
+						</button>
+						<button
+							on:click={() => showRejetModal = true}
+							class="w-full px-4 py-2.5 border-2 border-red-200 text-red-600 hover:bg-red-50 font-semibold text-sm rounded-lg transition-all flex items-center justify-center gap-2"
+						>
+							<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+							</svg>
+							Rejeter la demande
+						</button>
+					</div>
 				</div>
 			{/if}
 
@@ -330,6 +416,60 @@
 						</svg>
 					{/if}
 					Escalader
+				</button>
+			</div>
+		</div>
+	</div>
+{/if}
+
+<!-- MODAL REJET -->
+{#if showRejetModal}
+	<div class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" on:click|self={() => showRejetModal = false}>
+		<div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
+			<div class="flex items-start justify-between mb-4">
+				<div>
+					<h3 class="font-syne font-bold text-lg text-gray-800">Rejeter la demande</h3>
+					<p class="text-sm text-gray-500 mt-0.5">Dossier {demande.id}</p>
+				</div>
+				<button on:click={() => showRejetModal = false} class="text-gray-400 hover:text-gray-600 p-1">
+					<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+					</svg>
+				</button>
+			</div>
+
+			<div class="bg-red-50 border border-red-100 rounded-xl p-3 mb-4 text-sm text-red-700">
+				❌ Cette action est irréversible. Le citoyen sera informé du rejet.
+			</div>
+
+			<div>
+				<label class="label" for="rejet-motif">
+					Motif du rejet <span class="text-red-500">*</span>
+				</label>
+				<textarea
+					id="rejet-motif"
+					bind:value={rejetMotif}
+					rows="4"
+					class="input-field resize-none {rejetError ? 'border-red-400' : ''}"
+					placeholder="Document manquant, informations incorrectes, demande non conforme..."
+				></textarea>
+				{#if rejetError}<p class="text-xs text-red-500 mt-1">{rejetError}</p>{/if}
+			</div>
+
+			<div class="mt-4 flex gap-3 justify-end">
+				<button on:click={() => showRejetModal = false} class="btn-ghost">Annuler</button>
+				<button
+					on:click={rejeter}
+					class="bg-red-500 hover:bg-red-600 text-white font-semibold px-5 py-2.5 rounded-lg transition-all flex items-center gap-2"
+					disabled={saving}
+				>
+					{#if saving}
+						<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+							<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+							<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+						</svg>
+					{/if}
+					Confirmer le rejet
 				</button>
 			</div>
 		</div>

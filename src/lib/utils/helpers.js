@@ -78,3 +78,10 @@ export function getStatutStep(statut) {
 export function isEscaladee(demande) {
 	return demande.escalade && !demande.escalade.resolu;
 }
+
+/** Retourne true si la demande est en retard selon le seuil SLA */
+export function isSLADepassee(demande, heures = 48) {
+	if (['traitee', 'disponible', 'rejetee'].includes(demande.statut)) return false;
+	const ref = demande.updated_at || demande.created_at;
+	return (Date.now() - new Date(ref).getTime()) > heures * 3600000;
+}

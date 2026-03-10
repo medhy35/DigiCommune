@@ -19,6 +19,21 @@
 	}
 </script>
 
+{@const notes = historique.filter(h => h.type === 'note')}
+{#if notes.length > 0}
+	<div class="space-y-2 mb-4">
+		{#each notes as n}
+			<div class="flex items-start gap-2 bg-blue-50 border border-blue-100 rounded-xl px-3 py-2.5">
+				<span class="text-base flex-shrink-0 mt-0.5">📝</span>
+				<div class="flex-1 min-w-0">
+					<p class="text-sm text-blue-800">{n.note}</p>
+					<p class="text-xs text-blue-400 mt-0.5">{n.par} · {formatDateTime(n.date)}</p>
+				</div>
+			</div>
+		{/each}
+	</div>
+{/if}
+
 {#if statut === 'rejetee'}
 	<div class="flex items-center gap-3 p-4 bg-red-50 rounded-xl border border-red-200">
 		<span class="text-2xl">❌</span>
