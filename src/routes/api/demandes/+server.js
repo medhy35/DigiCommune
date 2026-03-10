@@ -53,10 +53,19 @@ export async function POST({ request }) {
 		personne_concernee: body.personne_concernee,
 		copies: body.copies,
 		mode_reception: body.mode_reception,
+		documents: body.documents || [],
+		paiement: body.paiement || { mode: 'mairie', statut: 'en_attente', montant: body.copies * 500 },
 		agent_id: assignAgent(demandes),
 		escalade: null,
 		historique: [
-			{ statut: 'recue', date: now, note: 'Demande soumise en ligne', par: 'citoyen' }
+			{
+				statut: 'recue',
+				date: now,
+				note: body.paiement?.statut === 'paye'
+					? `Demande soumise en ligne · Paiement confirmé (${body.paiement.reference})`
+					: 'Demande soumise en ligne · Paiement au retrait',
+				par: 'citoyen'
+			}
 		]
 	};
 
