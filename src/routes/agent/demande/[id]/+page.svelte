@@ -2,9 +2,9 @@
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
-	import Timeline from '$lib/components/Timeline.svelte';
+	import DemandeDetailPanel from '$lib/components/DemandeDetailPanel.svelte';
 	import StatusBadge from '$lib/components/StatusBadge.svelte';
-	import { TYPE_ACTE_LABELS, TYPE_ACTE_ICONS, CONCERNANT_LABELS, MODE_RECEPTION_LABELS, formatDate, formatDateTime, isEscaladee } from '$lib/utils/helpers.js';
+	import { formatDateTime, isEscaladee } from '$lib/utils/helpers.js';
 	import { downloadActePDF } from '$lib/utils/pdf.js';
 
 	let demande = null;
@@ -140,133 +140,9 @@
 	</div>
 
 	<div class="grid lg:grid-cols-3 gap-4">
-		<!-- LEFT: Info -->
-		<div class="lg:col-span-2 space-y-4">
-
-			<!-- Demandeur -->
-			<div class="card">
-				<h2 class="font-syne font-semibold text-gray-700 mb-3 flex items-center gap-2">
-					<span class="w-7 h-7 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center text-sm">👤</span>
-					Demandeur
-				</h2>
-				<dl class="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-					<div><dt class="text-gray-400 text-xs">Nom complet</dt><dd class="font-medium mt-0.5">{demande.demandeur.prenom} {demande.demandeur.nom}</dd></div>
-					<div><dt class="text-gray-400 text-xs">Date de naissance</dt><dd class="font-medium mt-0.5">{formatDate(demande.demandeur.date_naissance)}</dd></div>
-					<div><dt class="text-gray-400 text-xs">Téléphone</dt><dd class="font-medium mt-0.5 text-primary-600">{demande.demandeur.telephone}</dd></div>
-					<div><dt class="text-gray-400 text-xs">CNI</dt><dd class="font-medium mt-0.5">{demande.demandeur.cni || '—'}</dd></div>
-				</dl>
-			</div>
-
-			<!-- Demande -->
-			<div class="card">
-				<h2 class="font-syne font-semibold text-gray-700 mb-3 flex items-center gap-2">
-					<span class="text-2xl">{TYPE_ACTE_ICONS[demande.type_acte]}</span>
-					Détails de la demande
-				</h2>
-				<dl class="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-					<div><dt class="text-gray-400 text-xs">Type d'acte</dt><dd class="font-medium mt-0.5">{TYPE_ACTE_LABELS[demande.type_acte]}</dd></div>
-					<div><dt class="text-gray-400 text-xs">Concernant</dt><dd class="font-medium mt-0.5">{CONCERNANT_LABELS[demande.concernant]}</dd></div>
-					<div><dt class="text-gray-400 text-xs">Personne concernée</dt><dd class="font-medium mt-0.5">{demande.personne_concernee.prenom} {demande.personne_concernee.nom}</dd></div>
-					<div><dt class="text-gray-400 text-xs">Date de naissance</dt><dd class="font-medium mt-0.5">{formatDate(demande.personne_concernee.date_naissance)}</dd></div>
-					<div>
-						<dt class="text-gray-400 text-xs">N° de registre</dt>
-						<dd class="font-medium mt-0.5 font-mono">
-							{demande.personne_concernee.numero_registre || ''}
-							{#if !demande.personne_concernee.numero_registre}
-								<span class="text-amber-600 font-sans text-xs font-normal">Non renseigné ⚠️</span>
-							{/if}
-						</dd>
-					</div>
-					<div>
-						<dt class="text-gray-400 text-xs">Date de l'acte</dt>
-						<dd class="font-medium mt-0.5">
-							{demande.personne_concernee.date_evenement ? formatDate(demande.personne_concernee.date_evenement) : '—'}
-						</dd>
-					</div>
-					<div><dt class="text-gray-400 text-xs">Copies</dt><dd class="font-medium mt-0.5">{demande.copies}</dd></div>
-					<div><dt class="text-gray-400 text-xs">Mode de réception</dt><dd class="font-medium mt-0.5">{MODE_RECEPTION_LABELS[demande.mode_reception]}</dd></div>
-				</dl>
-			</div>
-
-			<!-- Paiement -->
-			{#if demande.paiement}
-				<div class="card {demande.paiement.statut === 'paye' ? 'border-l-4 border-primary-400' : 'border-l-4 border-amber-400'}">
-					<h2 class="font-syne font-semibold text-gray-700 mb-3 flex items-center gap-2 text-sm">
-						<span class="text-lg">🏦</span> Paiement des frais de timbre
-					</h2>
-					<dl class="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-						<div>
-							<dt class="text-gray-400 text-xs">Statut</dt>
-							<dd class="mt-0.5">
-								{#if demande.paiement.statut === 'paye'}
-									<span class="inline-flex items-center gap-1 text-primary-700 font-semibold">
-										<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
-										Payé en ligne
-									</span>
-								{:else}
-									<span class="inline-flex items-center gap-1 text-amber-700 font-semibold">
-										⏳ À percevoir en mairie
-									</span>
-								{/if}
-							</dd>
-						</div>
-						<div><dt class="text-gray-400 text-xs">Montant</dt><dd class="font-bold mt-0.5">{demande.paiement.montant?.toLocaleString('fr-FR')} FCFA</dd></div>
-						{#if demande.paiement.reference}
-							<div><dt class="text-gray-400 text-xs">Référence</dt><dd class="font-mono text-xs mt-0.5">{demande.paiement.reference}</dd></div>
-						{/if}
-						{#if demande.paiement.operateur}
-							<div><dt class="text-gray-400 text-xs">Opérateur</dt><dd class="font-medium mt-0.5 capitalize">{demande.paiement.operateur}</dd></div>
-						{/if}
-					</dl>
-				</div>
-			{/if}
-
-			<!-- Documents joints -->
-			{#if demande.documents && demande.documents.length > 0}
-				<div class="card">
-					<h2 class="font-syne font-semibold text-gray-700 mb-3 flex items-center gap-2 text-sm">
-						<span class="text-lg">📎</span> Documents déposés par le citoyen
-					</h2>
-					<ul class="space-y-2">
-						{#each demande.documents as doc}
-							<li class="flex items-center gap-3 text-sm bg-gray-50 rounded-xl p-3">
-								<span class="text-xl">{doc.type === 'cni' ? '🪪' : '📄'}</span>
-								<div class="flex-1 min-w-0">
-									<p class="font-medium text-gray-800 truncate">{doc.nom}</p>
-									<p class="text-xs text-gray-400">{doc.type === 'cni' ? 'Pièce d\'identité' : 'Extrait'} · {(doc.taille / 1024).toFixed(0)} Ko</p>
-								</div>
-								<span class="text-xs bg-primary-100 text-primary-700 px-2 py-0.5 rounded-full font-medium">Reçu</span>
-							</li>
-						{/each}
-					</ul>
-					<p class="text-xs text-gray-400 mt-2">Documents vérifiables lors du traitement du dossier.</p>
-				</div>
-			{:else}
-				<div class="flex items-center gap-2 text-sm text-amber-700 bg-amber-50 border border-amber-100 rounded-xl p-3">
-					<svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
-					Aucun document joint — demande à vérifier en présentiel.
-				</div>
-			{/if}
-
-			<!-- Escalade info -->
-			{#if isEscaladee(demande)}
-				<div class="bg-orange-50 border border-orange-200 rounded-xl p-4">
-					<h3 class="font-semibold text-orange-800 flex items-center gap-2 mb-2">
-						<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
-						</svg>
-						Demande escaladée au {demande.escalade.level}
-					</h3>
-					<p class="text-sm text-orange-700">{demande.escalade.motif}</p>
-					<p class="text-xs text-orange-500 mt-1">{formatDateTime(demande.escalade.date)}</p>
-				</div>
-			{/if}
-
-			<!-- Timeline -->
-			<div class="card">
-				<h2 class="font-syne font-semibold text-gray-700 mb-4">Historique</h2>
-				<Timeline historique={demande.historique} statut={demande.statut} />
-			</div>
+		<!-- LEFT: Détail complet via composant réutilisable (prévisualisation documents incluse) -->
+		<div class="lg:col-span-2">
+			<DemandeDetailPanel {demande} />
 		</div>
 
 		<!-- RIGHT: Actions -->

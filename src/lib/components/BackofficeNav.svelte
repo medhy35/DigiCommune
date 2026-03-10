@@ -1,10 +1,14 @@
 <script>
+	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { authRole, ROLE_LABELS, ROLE_COLORS } from '$lib/stores/auth.js';
 
 	export let commune = null;
 	export let escaladeCount = 0;
+
+	let notifications = [];
+	let showNotifDropdown = false;
 
 	function logout() {
 		authRole.logout();
@@ -14,6 +18,64 @@
 	$: role = $authRole;
 	$: roleLabel = ROLE_LABELS[role] || role;
 	$: roleColor = ROLE_COLORS[role] || 'bg-gray-100 text-gray-600';
+	$: unreadCount = notifications.filter(n => !n.read).length;
+
+	onMount(async () => {
+		if (role) await fetchNotifications();
+	});
+
+	async function fetchNotifications() {
+		try {
+			const res = await fetch(`/api/notifications?role=${role}`);
+			if (res.ok) notifications = await res.json();
+		} catch {}
+	}
+
+	async function markRead(notif) {
+		if (notif.read) return;
+		await fetch(`/api/notifications/${notif.id}`, {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ read: true })
+		});
+		notifications = notifications.map(n => n.id === notif.id ? { ...n, read: true } : n);
+	}
+
+	async function markAllRead() {
+		const unread = notifications.filter(n => !n.read);
+		await Promise.all(unread.map(n => fetch(`/api/notifications/${n.id}`, {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ read: true })
+		})));
+		notifications = notifications.map(n => ({ ...n, read: true }));
+	}
+
+	function openNotif(notif) {
+		markRead(notif);
+		showNotifDropdown = false;
+		if (!notif.demande_id) return;
+		if (role === 'agent') goto(`/agent/demande/${notif.demande_id}`);
+		else if (role === 'superviseur') goto(`/superviseur`);
+		else if (role === 'maire') goto(`/maire?tab=critiques`);
+	}
+
+	const TYPE_ICONS = {
+		nouvelle_demande: '📋',
+		escalade: '⚠️',
+		escalade_critique: '🚨',
+		info: 'ℹ️'
+	};
+
+	function timeAgo(isoString) {
+		const diff = Date.now() - new Date(isoString).getTime();
+		const m = Math.floor(diff / 60000);
+		if (m < 1) return 'à l\'instant';
+		if (m < 60) return `il y a ${m} min`;
+		const h = Math.floor(m / 60);
+		if (h < 24) return `il y a ${h}h`;
+		return `il y a ${Math.floor(h / 24)}j`;
+	}
 
 	const navItems = {
 		agent: [
@@ -32,6 +94,11 @@
 
 	$: currentNav = navItems[role] || [];
 </script>
+
+<!-- Overlay pour fermer le dropdown en cliquant dehors -->
+{#if showNotifDropdown}
+	<div class="fixed inset-0 z-30" on:click={() => showNotifDropdown = false}></div>
+{/if}
 
 <nav class="bg-white border-b border-gray-100 sticky top-0 z-40 shadow-sm">
 	<div class="max-w-7xl mx-auto px-4 sm:px-6">
@@ -66,8 +133,82 @@
 				{/each}
 			</div>
 
-			<!-- Right: Role + Logout -->
-			<div class="flex items-center gap-3">
+			<!-- Right: Notifications + Role + Logout -->
+			<div class="flex items-center gap-2">
+
+				<!-- Cloche notifications -->
+				<div class="relative">
+					<button
+						on:click={() => showNotifDropdown = !showNotifDropdown}
+						class="relative p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+						title="Notifications"
+					>
+						<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+								d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+						</svg>
+						{#if unreadCount > 0}
+							<span class="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center leading-none">
+								{unreadCount > 9 ? '9+' : unreadCount}
+							</span>
+						{/if}
+					</button>
+
+					<!-- Dropdown notifications -->
+					{#if showNotifDropdown}
+						<div class="absolute right-0 top-full mt-2 w-80 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-50">
+							<!-- Header -->
+							<div class="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+								<div class="flex items-center gap-2">
+									<h3 class="font-syne font-semibold text-gray-800 text-sm">Notifications</h3>
+									{#if unreadCount > 0}
+										<span class="bg-red-100 text-red-600 text-xs font-bold px-1.5 py-0.5 rounded-full">{unreadCount} nouvelle{unreadCount > 1 ? 's' : ''}</span>
+									{/if}
+								</div>
+								{#if unreadCount > 0}
+									<button on:click={markAllRead} class="text-xs text-primary-600 hover:text-primary-700 font-medium">
+										Tout lire
+									</button>
+								{/if}
+							</div>
+
+							<!-- Liste -->
+							<div class="max-h-80 overflow-y-auto">
+								{#if notifications.length === 0}
+									<div class="text-center py-8 text-gray-400">
+										<p class="text-3xl mb-2">🔔</p>
+										<p class="text-sm">Aucune notification</p>
+									</div>
+								{:else}
+									{#each notifications as notif}
+										<button
+											on:click={() => openNotif(notif)}
+											class="w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-0
+												{!notif.read ? 'bg-primary-50/40' : ''}"
+										>
+											<div class="flex items-start gap-3">
+												<span class="text-lg flex-shrink-0 mt-0.5">{TYPE_ICONS[notif.type] || '🔔'}</span>
+												<div class="flex-1 min-w-0">
+													<p class="text-sm text-gray-800 leading-snug {!notif.read ? 'font-medium' : ''}">{notif.message}</p>
+													<p class="text-xs text-gray-400 mt-0.5">{timeAgo(notif.created_at)}</p>
+												</div>
+												{#if !notif.read}
+													<div class="w-2 h-2 bg-primary-500 rounded-full flex-shrink-0 mt-1.5"></div>
+												{/if}
+											</div>
+										</button>
+									{/each}
+								{/if}
+							</div>
+
+							<!-- Footer -->
+							<div class="px-4 py-2.5 border-t border-gray-100 bg-gray-50">
+								<p class="text-xs text-gray-400 text-center">{notifications.length} notification{notifications.length > 1 ? 's' : ''} au total</p>
+							</div>
+						</div>
+					{/if}
+				</div>
+
 				<span class="text-xs font-medium px-2.5 py-1 rounded-full {roleColor}">
 					{roleLabel}
 				</span>

@@ -1,6 +1,21 @@
 import { json } from '@sveltejs/kit';
 import { readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
+import { readNotifications, writeNotifications } from '../notifications/+server.js';
+
+function createNotification(role, type, message, demande_id) {
+	const all = readNotifications();
+	const maxNum = all
+		.map(n => parseInt(n.id.replace('notif_', '') || '0'))
+		.reduce((a, b) => Math.max(a, b), 0);
+	all.push({
+		id: `notif_${String(maxNum + 1).padStart(3, '0')}`,
+		role, type, message, demande_id,
+		read: false,
+		created_at: new Date().toISOString()
+	});
+	writeNotifications(all);
+}
 
 const DATA_FILE = join(process.cwd(), 'data', 'demandes.json');
 
@@ -71,6 +86,17 @@ export async function POST({ request }) {
 
 	demandes.push(newDemande);
 	writeDemandes(demandes);
+
+	// Notifier l'agent assigné
+	const agentId = newDemande.agent_id;
+	const agentNum = agentId?.split('_')[1];
+	const TYPE_LABELS = { naissance: 'Acte de naissance', mariage: 'Acte de mariage', deces: 'Acte de décès' };
+	createNotification(
+		'agent',
+		'nouvelle_demande',
+		`Nouvelle demande — ${body.demandeur.prenom} ${body.demandeur.nom} · ${TYPE_LABELS[body.type_acte] || body.type_acte}`,
+		id
+	);
 
 	return json(newDemande, { status: 201 });
 }
