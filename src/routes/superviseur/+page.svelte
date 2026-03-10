@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 	import StatusBadge from '$lib/components/StatusBadge.svelte';
-	import Timeline from '$lib/components/Timeline.svelte';
+	import DemandeDetailPanel from '$lib/components/DemandeDetailPanel.svelte';
 	import { TYPE_ACTE_LABELS, TYPE_ACTE_ICONS, CONCERNANT_LABELS, MODE_RECEPTION_LABELS, formatDate, formatDateTime, timeAgo, isEscaladee } from '$lib/utils/helpers.js';
 
 	let allDemandes = [];
@@ -219,34 +219,11 @@
 		<div>
 			{#if selectedDemande}
 				<div class="space-y-4">
-					<!-- Header -->
-					<div class="card">
-						<div class="flex items-start justify-between mb-3">
-							<div>
-								<span class="font-mono font-bold text-lg text-gray-800">{selectedDemande.id}</span>
-								<div class="flex gap-2 mt-1 flex-wrap">
-									<StatusBadge demande={selectedDemande} />
-								</div>
-							</div>
-							<span class="text-3xl">{TYPE_ACTE_ICONS[selectedDemande.type_acte]}</span>
-						</div>
-
-						<dl class="grid grid-cols-2 gap-2 text-sm">
-							<div><dt class="text-xs text-gray-400">Demandeur</dt><dd class="font-medium mt-0.5">{selectedDemande.demandeur.prenom} {selectedDemande.demandeur.nom}</dd></div>
-							<div><dt class="text-xs text-gray-400">Téléphone</dt><dd class="font-medium mt-0.5 text-primary-600">{selectedDemande.demandeur.telephone}</dd></div>
-							<div><dt class="text-xs text-gray-400">Type d'acte</dt><dd class="font-medium mt-0.5">{TYPE_ACTE_LABELS[selectedDemande.type_acte]}</dd></div>
-							<div><dt class="text-xs text-gray-400">Agent assigné</dt><dd class="font-medium mt-0.5">{agentName(selectedDemande.agent_id)}</dd></div>
-						</dl>
-					</div>
-
-					<!-- Escalade detail -->
+					<!-- Actions escalade -->
 					{#if isEscaladee(selectedDemande) && selectedDemande.escalade.level === 'superviseur'}
 						<div class="bg-orange-50 border border-orange-200 rounded-xl p-4">
 							<h3 class="font-semibold text-orange-800 mb-2">⚠️ Escalade à traiter</h3>
-							<p class="text-sm text-orange-700 mb-1">{selectedDemande.escalade.motif}</p>
-							<p class="text-xs text-orange-500">{formatDateTime(selectedDemande.escalade.date)}</p>
-
-							<div class="mt-4 flex gap-2">
+							<div class="flex gap-2 mt-2">
 								<button
 									on:click={resoudreEscalade}
 									class="btn-primary text-sm py-2 flex-1 justify-center"
@@ -267,6 +244,7 @@
 					<!-- Réassigner -->
 					<div class="card">
 						<h3 class="font-syne font-semibold text-gray-700 mb-2 text-sm">Réassigner l'agent</h3>
+						<p class="text-xs text-gray-400 mb-2">Agent actuel : <span class="font-medium text-gray-600">{agentName(selectedDemande.agent_id)}</span></p>
 						<div class="flex gap-2">
 							<select bind:value={reassignAgentId} class="input-field text-sm flex-1">
 								<option value="">— Choisir un agent —</option>
@@ -284,11 +262,8 @@
 						</div>
 					</div>
 
-					<!-- Timeline -->
-					<div class="card">
-						<h3 class="font-syne font-semibold text-gray-700 mb-3 text-sm">Historique</h3>
-						<Timeline historique={selectedDemande.historique} statut={selectedDemande.statut} />
-					</div>
+					<!-- Détail complet -->
+					<DemandeDetailPanel demande={selectedDemande} compact={true} />
 				</div>
 			{:else}
 				<div class="card text-center py-16 text-gray-400">

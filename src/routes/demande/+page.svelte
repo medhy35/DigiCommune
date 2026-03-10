@@ -162,8 +162,8 @@
 					copies: Number(form.copies),
 					mode_reception: form.mode_reception,
 					documents: [
-						uploadedDocs.cni ? { type: 'cni', nom: uploadedDocs.cni.name, taille: uploadedDocs.cni.size } : null,
-						uploadedDocs.extrait ? { type: 'extrait', nom: uploadedDocs.extrait.name, taille: uploadedDocs.extrait.size } : null
+						uploadedDocs.cni ? { type: 'cni', nom: uploadedDocs.cni.name, taille: uploadedDocs.cni.size, mimetype: uploadedDocs.cni.type, data: uploadedDocs.cni.preview } : null,
+						uploadedDocs.extrait ? { type: 'extrait', nom: uploadedDocs.extrait.name, taille: uploadedDocs.extrait.size, mimetype: uploadedDocs.extrait.type, data: uploadedDocs.extrait.preview } : null
 					].filter(Boolean),
 					paiement: {
 						mode: paymentMode,

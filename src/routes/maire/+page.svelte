@@ -1,7 +1,7 @@
 <script>
 	import { onMount } from 'svelte';
 	import StatusBadge from '$lib/components/StatusBadge.svelte';
-	import Timeline from '$lib/components/Timeline.svelte';
+	import DemandeDetailPanel from '$lib/components/DemandeDetailPanel.svelte';
 	import { TYPE_ACTE_LABELS, TYPE_ACTE_ICONS, CONCERNANT_LABELS, formatDate, formatDateTime, isEscaladee } from '$lib/utils/helpers.js';
 
 	let allDemandes = [];
@@ -229,30 +229,7 @@
 				<div>
 					{#if selectedDemande && isEscaladee(selectedDemande)}
 						<div class="space-y-4">
-							<div class="card">
-								<div class="flex items-start justify-between mb-3">
-									<div>
-										<span class="font-mono font-bold text-lg text-gray-800">{selectedDemande.id}</span>
-										<StatusBadge demande={selectedDemande} />
-									</div>
-									<span class="text-3xl">{TYPE_ACTE_ICONS[selectedDemande.type_acte]}</span>
-								</div>
-								<dl class="grid grid-cols-2 gap-2 text-sm">
-									<div><dt class="text-xs text-gray-400">Demandeur</dt><dd class="font-medium mt-0.5">{selectedDemande.demandeur.prenom} {selectedDemande.demandeur.nom}</dd></div>
-									<div><dt class="text-xs text-gray-400">Téléphone</dt><dd class="font-medium mt-0.5">{selectedDemande.demandeur.telephone}</dd></div>
-									<div><dt class="text-xs text-gray-400">Type d'acte</dt><dd class="font-medium mt-0.5">{TYPE_ACTE_LABELS[selectedDemande.type_acte]}</dd></div>
-									<div><dt class="text-xs text-gray-400">Concernant</dt><dd class="font-medium mt-0.5">{CONCERNANT_LABELS[selectedDemande.concernant]}</dd></div>
-								</dl>
-							</div>
-
-							<!-- Motif escalade -->
-							<div class="bg-orange-50 border border-orange-200 rounded-xl p-4">
-								<h3 class="font-semibold text-orange-800 mb-1">Motif de l'escalade</h3>
-								<p class="text-sm text-orange-700">{selectedDemande.escalade.motif}</p>
-								<p class="text-xs text-orange-500 mt-2">{formatDateTime(selectedDemande.escalade.date)}</p>
-							</div>
-
-							<!-- Actions Maire (LECTURE + DÉCISION) -->
+							<!-- Actions Maire -->
 							{#if actionDone?.id === selectedDemande.id}
 								<div class="card text-center py-6">
 									<p class="text-3xl mb-2">{actionDone.action === 'valider' ? '✅' : '❌'}</p>
@@ -292,11 +269,8 @@
 								</div>
 							{/if}
 
-							<!-- Timeline -->
-							<div class="card">
-								<h3 class="font-syne font-semibold text-gray-700 mb-3 text-sm">Historique complet</h3>
-								<Timeline historique={selectedDemande.historique} statut={selectedDemande.statut} />
-							</div>
+							<!-- Détail complet du dossier -->
+							<DemandeDetailPanel demande={selectedDemande} compact={true} />
 						</div>
 					{:else}
 						<div class="card text-center py-16 text-gray-400">
