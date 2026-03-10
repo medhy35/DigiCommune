@@ -1,23 +1,7 @@
 import { json, error } from '@sveltejs/kit';
 import { readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
-import { readNotifications, writeNotifications } from '../../notifications/+server.js';
-
-function createNotification(role, type, message, demande_id) {
-	const all = readNotifications();
-	const maxNum = all
-		.map(n => parseInt(n.id.replace('notif_', '') || '0'))
-		.reduce((a, b) => Math.max(a, b), 0);
-	all.push({
-		id: `notif_${String(maxNum + 1).padStart(3, '0')}`,
-		role, type, message, demande_id,
-		read: false,
-		created_at: new Date().toISOString()
-	});
-	writeNotifications(all);
-}
-
-const DATA_FILE = join(process.cwd(), 'data', 'demandes.json');
+import { createNotification } from '$lib/server/notifications.js';const DATA_FILE = join(process.cwd(), 'data', 'demandes.json');
 
 function readDemandes() {
 	return JSON.parse(readFileSync(DATA_FILE, 'utf-8'));

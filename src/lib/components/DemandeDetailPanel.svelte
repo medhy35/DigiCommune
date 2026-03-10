@@ -256,8 +256,12 @@
 <!-- LIGHTBOX document image -->
 {#if lightboxSrc}
 	<div
+		role="dialog"
+		aria-modal="true"
+		aria-label="Prévisualisation du document"
 		class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-4"
 		on:click|self={() => lightboxSrc = null}
+		on:keydown={(e) => e.key === 'Escape' && (lightboxSrc = null)}
 	>
 		<div class="bg-white rounded-2xl overflow-hidden shadow-2xl max-w-2xl w-full">
 			<div class="flex items-center justify-between px-4 py-3 border-b border-gray-100">

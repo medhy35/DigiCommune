@@ -1,20 +1,5 @@
 import { json } from '@sveltejs/kit';
-import { readFileSync, writeFileSync } from 'fs';
-import { join } from 'path';
-
-const DATA_FILE = join(process.cwd(), 'data', 'notifications.json');
-
-export function readNotifications() {
-	try {
-		return JSON.parse(readFileSync(DATA_FILE, 'utf-8'));
-	} catch {
-		return [];
-	}
-}
-
-export function writeNotifications(notifications) {
-	writeFileSync(DATA_FILE, JSON.stringify(notifications, null, 2), 'utf-8');
-}
+import { readNotifications, writeNotifications, createNotification } from '$lib/server/notifications.js';
 
 /** GET /api/notifications?role=agent  → liste triée par date desc */
 export function GET({ url }) {
@@ -24,23 +9,9 @@ export function GET({ url }) {
 	return json(result.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)));
 }
 
-/** POST /api/notifications  → crée une nouvelle notification */
+/** POST /api/notifications  → crée une notification */
 export async function POST({ request }) {
 	const body = await request.json();
-	const all = readNotifications();
-	const maxNum = all
-		.map(n => parseInt(n.id.replace('notif_', '') || '0'))
-		.reduce((a, b) => Math.max(a, b), 0);
-	const newNotif = {
-		id: `notif_${String(maxNum + 1).padStart(3, '0')}`,
-		role: body.role,
-		type: body.type || 'info',
-		message: body.message,
-		demande_id: body.demande_id || null,
-		read: false,
-		created_at: new Date().toISOString()
-	};
-	all.push(newNotif);
-	writeNotifications(all);
-	return json(newNotif, { status: 201 });
+	createNotification(body.role, body.type || 'info', body.message, body.demande_id || null);
+	return json({ ok: true }, { status: 201 });
 }

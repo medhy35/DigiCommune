@@ -277,7 +277,7 @@
 
 <!-- Modal escalade maire -->
 {#if showEscaladeMaireModal}
-	<div class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" on:click|self={() => showEscaladeMaireModal = false}>
+	<div role="dialog" aria-modal="true" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" on:click|self={() => showEscaladeMaireModal = false} on:keydown={(e) => e.key === 'Escape' && (showEscaladeMaireModal = false)}>
 		<div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
 			<h3 class="font-syne font-bold text-lg text-gray-800 mb-1">Escalader au Maire</h3>
 			<p class="text-sm text-gray-500 mb-4">Cette demande sera soumise à la décision du Maire.</p>

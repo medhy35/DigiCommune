@@ -97,6 +97,7 @@
 
 <!-- Overlay pour fermer le dropdown en cliquant dehors -->
 {#if showNotifDropdown}
+	<!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
 	<div class="fixed inset-0 z-30" on:click={() => showNotifDropdown = false}></div>
 {/if}
 

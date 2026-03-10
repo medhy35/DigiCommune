@@ -1,5 +1,5 @@
 import { json, error } from '@sveltejs/kit';
-import { readNotifications, writeNotifications } from '../+server.js';
+import { readNotifications, writeNotifications } from '$lib/server/notifications.js';
 
 /** PATCH /api/notifications/:id  → { read: true } pour marquer comme lue */
 export async function PATCH({ params, request }) {
