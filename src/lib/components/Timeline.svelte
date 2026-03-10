@@ -4,6 +4,8 @@
 	export let historique = [];
 	export let statut = '';
 
+	$: notes = historique.filter(h => h.type === 'note');
+
 	const TIMELINE_STEPS = [
 		{ key: 'recue', label: 'Demande reçue', icon: '📋' },
 		{ key: 'en_cours', label: 'En cours de traitement', icon: '⚙️' },
@@ -19,7 +21,6 @@
 	}
 </script>
 
-{@const notes = historique.filter(h => h.type === 'note')}
 {#if notes.length > 0}
 	<div class="space-y-2 mb-4">
 		{#each notes as n}
