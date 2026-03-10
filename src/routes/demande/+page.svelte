@@ -135,6 +135,38 @@
 	const TYPE_LABELS = { naissance: 'Acte de naissance', mariage: 'Acte de mariage', deces: 'Acte de décès' };
 	const CONCERNANT_LABELS = { 'soi-meme': 'Vous-même', enfant: 'Un enfant', parent: 'Un parent' };
 	const MODE_LABELS = { retrait: 'Retrait en mairie', whatsapp: 'PDF par WhatsApp' };
+
+	const DOCS_REQUIS = {
+		naissance: {
+			label: 'Acte de naissance',
+			frais: 500,
+			docs: [
+				{ icon: '🪪', label: 'Pièce d\'identité', desc: 'CNI, extrait de naissance, passeport ou certificat de nationalité.', required: true },
+				{ icon: '📋', label: 'Copie de l\'extrait de naissance', desc: 'Si vous en disposez déjà, pour faciliter la recherche.', required: false }
+			],
+			note: null
+		},
+		mariage: {
+			label: 'Acte de mariage',
+			frais: 500,
+			docs: [
+				{ icon: '🪪', label: 'Pièce d\'identité', desc: 'CNI, passeport ou tout document officiel valide.', required: true },
+				{ icon: '📋', label: 'Date et lieu du mariage', desc: 'Pour faciliter la recherche dans les registres.', required: false }
+			],
+			note: null
+		},
+		deces: {
+			label: 'Acte de décès',
+			frais: 500,
+			docs: [
+				{ icon: '🪪', label: 'Pièce d\'identité du demandeur', desc: 'CNI, passeport ou tout document officiel valide.', required: true },
+				{ icon: '📋', label: 'Informations sur le défunt', desc: 'Nom, prénoms, date approximative de décès.', required: false }
+			],
+			note: null
+		}
+	};
+
+	$: docsInfo = form.type_acte ? DOCS_REQUIS[form.type_acte] : null;
 </script>
 
 <svelte:head>
@@ -371,6 +403,42 @@
 					{#if errors.concernant}<p class="text-xs text-red-500 mt-1">{errors.concernant}</p>{/if}
 				</div>
 
+				<!-- Documents requis (info panel) -->
+				{#if docsInfo}
+					<div class="bg-primary-50 border border-primary-100 rounded-xl p-4">
+						<div class="flex items-center justify-between mb-3">
+							<h4 class="text-sm font-semibold text-primary-800 flex items-center gap-1.5">
+								<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+								</svg>
+								Documents à présenter en mairie
+							</h4>
+							<a href="/demarches?type={form.type_acte}" target="_blank" class="text-xs text-primary-600 hover:underline flex items-center gap-0.5">
+								Guide complet
+								<svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+								</svg>
+							</a>
+						</div>
+						<ul class="space-y-2">
+							{#each docsInfo.docs as doc}
+								<li class="flex items-start gap-2 text-sm">
+									<span class="flex-shrink-0">{doc.icon}</span>
+									<span class="{doc.required ? 'text-primary-800' : 'text-primary-600'}">
+										<strong>{doc.label}</strong>
+										{#if !doc.required}<span class="font-normal text-primary-500"> (facultatif)</span>{/if}
+										<span class="font-normal"> — {doc.desc}</span>
+									</span>
+								</li>
+							{/each}
+						</ul>
+						<div class="mt-3 pt-3 border-t border-primary-200 flex items-center gap-2 text-sm text-primary-700">
+							<span>💰</span>
+							<span>Frais de timbre : <strong>500 FCFA par copie</strong></span>
+						</div>
+					</div>
+				{/if}
+
 				<!-- Numero de registre -->
 				<div>
 					<label class="label" for="registre">
@@ -416,10 +484,17 @@
 				<!-- Copies -->
 				<div>
 					<label class="label" for="copies">Nombre de copies souhaitées <span class="text-red-500">*</span></label>
-					<div class="flex items-center gap-3">
-						<button type="button" on:click={() => form.copies = Math.max(1, form.copies - 1)} class="w-10 h-10 rounded-xl border border-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-50 font-bold text-lg">−</button>
-						<span class="w-12 text-center font-bold text-xl text-gray-800">{form.copies}</span>
-						<button type="button" on:click={() => form.copies = Math.min(10, form.copies + 1)} class="w-10 h-10 rounded-xl border border-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-50 font-bold text-lg">+</button>
+					<div class="flex items-center gap-4">
+						<div class="flex items-center gap-3">
+							<button type="button" on:click={() => form.copies = Math.max(1, form.copies - 1)} class="w-10 h-10 rounded-xl border border-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-50 font-bold text-lg">−</button>
+							<span class="w-12 text-center font-bold text-xl text-gray-800">{form.copies}</span>
+							<button type="button" on:click={() => form.copies = Math.min(10, form.copies + 1)} class="w-10 h-10 rounded-xl border border-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-50 font-bold text-lg">+</button>
+						</div>
+						<div class="flex-1 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
+							<p class="text-xs text-amber-600">Frais de timbre estimés</p>
+							<p class="font-bold text-amber-800">{(form.copies * 500).toLocaleString('fr-FR')} FCFA</p>
+							<p class="text-xs text-amber-500">500 FCFA × {form.copies} copie{form.copies > 1 ? 's' : ''}</p>
+						</div>
 					</div>
 					{#if errors.copies}<p class="text-xs text-red-500 mt-1">{errors.copies}</p>{/if}
 				</div>
@@ -491,6 +566,7 @@
 						{/if}
 						<div class="flex justify-between"><dt class="text-gray-500">Copies</dt><dd class="font-medium">{form.copies}</dd></div>
 						<div class="flex justify-between"><dt class="text-gray-500">Réception</dt><dd class="font-medium">{MODE_LABELS[form.mode_reception]}</dd></div>
+						<div class="flex justify-between pt-2 border-t border-gray-100"><dt class="text-gray-500">Frais de timbre</dt><dd class="font-bold text-amber-700">{(form.copies * 500).toLocaleString('fr-FR')} FCFA</dd></div>
 					</dl>
 				</div>
 

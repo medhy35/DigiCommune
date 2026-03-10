@@ -129,23 +129,41 @@
 
 	<div class="grid sm:grid-cols-3 gap-6">
 		{#each services as service}
-			<a
-				href="/demande?type={service.type}"
-				class="group bg-gradient-to-br {service.color} border {service.border} rounded-2xl p-6 hover:shadow-card-hover transition-all duration-300 hover:-translate-y-1"
-			>
-				<div class="w-14 h-14 {service.iconBg} rounded-2xl flex items-center justify-center text-2xl mb-4 group-hover:scale-110 transition-transform">
+			<div class="bg-gradient-to-br {service.color} border {service.border} rounded-2xl p-6 flex flex-col hover:shadow-card-hover transition-all duration-300 hover:-translate-y-1">
+				<div class="w-14 h-14 {service.iconBg} rounded-2xl flex items-center justify-center text-2xl mb-4">
 					{service.icon}
 				</div>
 				<h3 class="font-syne font-bold text-lg text-gray-800 mb-2">{service.label}</h3>
-				<p class="text-sm text-gray-600 leading-relaxed">{service.desc}</p>
-				<div class="mt-4 flex items-center gap-1 text-primary-600 text-sm font-semibold">
-					Faire une demande
-					<svg class="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-					</svg>
+				<p class="text-sm text-gray-600 leading-relaxed flex-1">{service.desc}</p>
+				<div class="mt-5 flex items-center gap-2">
+					<a href="/demande?type={service.type}" class="btn-primary text-sm py-2 flex-1 justify-center">
+						Faire une demande
+					</a>
+					<a
+						href="/demarches?type={service.type}"
+						class="w-10 h-10 flex items-center justify-center border border-gray-300 rounded-lg text-gray-500 hover:border-primary-400 hover:text-primary-600 hover:bg-primary-50 transition-all"
+						title="Guide de la démarche"
+					>
+						<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+						</svg>
+					</a>
 				</div>
-			</a>
+			</div>
 		{/each}
+	</div>
+
+	<!-- Lien guide -->
+	<div class="mt-6 text-center">
+		<a href="/demarches" class="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-primary-600 transition-colors">
+			<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+			</svg>
+			Consulter le guide complet des démarches (documents requis, délais, frais)
+			<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+			</svg>
+		</a>
 	</div>
 </section>
 
