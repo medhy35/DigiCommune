@@ -1,7 +1,21 @@
 import { json, error } from '@sveltejs/kit';
 import { readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
-import { createNotification } from '$lib/server/notifications.js';const DATA_FILE = join(process.cwd(), 'data', 'demandes.json');
+import { createNotification } from '$lib/server/notifications.js';
+
+const DATA_FILE = join(process.cwd(), 'data', 'demandes.json');
+const UTILISATEURS_FILE = join(process.cwd(), 'data', 'utilisateurs.json');
+
+function resolveUserName(userId) {
+	try {
+		const { agents, superviseurs, maire } = JSON.parse(readFileSync(UTILISATEURS_FILE, 'utf-8'));
+		const all = [...agents, ...superviseurs, maire];
+		const u = all.find(p => p.id === userId);
+		return u ? `${u.prenom} ${u.nom}` : userId;
+	} catch {
+		return userId;
+	}
+}
 
 function readDemandes() {
 	return JSON.parse(readFileSync(DATA_FILE, 'utf-8'));
@@ -35,7 +49,7 @@ export async function PATCH({ params, request }) {
 			statut: body.statut,
 			date: now,
 			note: body.note || '',
-			par: body.par || 'agent'
+			par: resolveUserName(body.par) || 'agent'
 		});
 	}
 
@@ -45,8 +59,8 @@ export async function PATCH({ params, request }) {
 		demande.historique.push({
 			statut: demande.statut,
 			date: now,
-			note: `Réassignée à ${body.agent_id}`,
-			par: body.par || 'superviseur'
+			note: `Réassignée à ${resolveUserName(body.agent_id)}`,
+			par: resolveUserName(body.par) || 'superviseur'
 		});
 		createNotification(
 			'agent',
@@ -54,6 +68,17 @@ export async function PATCH({ params, request }) {
 			`Dossier réassigné — ${params.id} vous a été confié par le superviseur`,
 			params.id
 		);
+	}
+
+	// Valider paiement en mairie
+	if (body.paiement_valide) {
+		demande.paiement = { ...demande.paiement, statut: 'paye', mode: 'mairie' };
+		demande.historique.push({
+			statut: demande.statut,
+			date: now,
+			note: `Paiement de ${demande.paiement.montant?.toLocaleString('fr-FR')} FCFA encaissé en mairie`,
+			par: resolveUserName(body.par) || 'agent'
+		});
 	}
 
 	// Handle escalade

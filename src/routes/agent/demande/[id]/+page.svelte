@@ -46,6 +46,17 @@
 		saving = false;
 	}
 
+	async function validerPaiement() {
+		saving = true;
+		const res = await fetch(`/api/demandes/${id}`, {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ paiement_valide: true, par: 'agent_001' })
+		});
+		if (res.ok) demande = await res.json();
+		saving = false;
+	}
+
 	async function escalader() {
 		if (!escaladeMotif.trim()) {
 			escaladeError = 'Le motif est obligatoire.';
@@ -165,6 +176,33 @@
 							✅
 						{/if}
 						{NEXT_LABEL[demande.statut]}
+					</button>
+				</div>
+			{/if}
+
+			<!-- Paiement en mairie -->
+			{#if demande.paiement?.statut === 'en_attente' && demande.paiement?.mode === 'mairie'}
+				<div class="card border-l-4 border-amber-400">
+					<h3 class="font-syne font-semibold text-gray-700 mb-1">Paiement en mairie</h3>
+					<p class="text-xs text-gray-500 mb-3">
+						{demande.paiement.montant?.toLocaleString('fr-FR')} FCFA à encaisser au guichet.
+					</p>
+					<button
+						on:click={validerPaiement}
+						class="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-primary-600 hover:bg-primary-700 text-white font-semibold text-sm rounded-lg transition-all"
+						disabled={saving}
+					>
+						{#if saving}
+							<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+								<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+								<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+							</svg>
+						{:else}
+							<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+							</svg>
+						{/if}
+						Confirmer encaissement
 					</button>
 				</div>
 			{/if}
