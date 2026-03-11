@@ -368,3 +368,123 @@ export async function downloadRecuPaiementPDF(demande, commune) {
 	const blob = await new Promise((resolve) => pdfMake.createPdf(docDefinition).getBlob(resolve));
 	triggerDownload(blob, `recu-paiement-${demande.id}.pdf`);
 }
+
+// ─── BON DE REMBOURSEMENT ─────────────────────────────────────────────────────
+
+export async function downloadBonRemboursementPDF(demande, commune) {
+	const pdfMake = await getPdfMake();
+	const typeLabel = TYPE_ACTE_LABELS[demande.type_acte] || demande.type_acte;
+	const remb = demande.paiement?.remboursement || {};
+	const paiement = demande.paiement || {};
+	const dateRemb = new Date(remb.date_remboursement || remb.date_demande);
+	const refDoc = `RMB-${demande.id}`;
+
+	const MODE_LABELS = {
+		mairie: 'Espèces au guichet — Mairie',
+		mobile_money: 'Mobile Money (MTN / Orange Money)',
+		en_ligne: 'Paiement en ligne'
+	};
+	const modeLabel = MODE_LABELS[paiement.mode] || paiement.mode || 'Non précisé';
+	const montant = paiement.montant || 0;
+
+	const docDefinition = {
+		pageSize: 'A4',
+		pageMargins: [50, 60, 50, 60],
+		content: [
+			...headerBlock(commune),
+
+			{ text: 'BON DE REMBOURSEMENT', style: 'titre_remb', alignment: 'center' },
+			{ text: 'Service Finances — État Civil', style: 'sous_titre', alignment: 'center' },
+			{ text: '\n' },
+			{
+				columns: [
+					{ text: `N° Bon : ${refDoc}`, style: 'ref_text' },
+					{
+						text: `Le : ${dateRemb.toLocaleDateString('fr-FR')}`,
+						style: 'ref_text', alignment: 'right'
+					}
+				]
+			},
+			{ text: '\n' },
+			{
+				text: [
+					`La Mairie de `,
+					{ text: commune.nom, bold: true },
+					` procède au remboursement des frais de dossier suite au rejet de la demande référencée ci-dessous. Ce remboursement est définitif.`
+				],
+				style: 'corps'
+			},
+			{ text: '\n' },
+			{
+				style: 'tableStyle',
+				table: {
+					widths: [190, '*'],
+					body: [
+						[{ text: 'N° DE DOSSIER', style: 'tableHeader' }, { text: demande.id, style: 'tableValue' }],
+						[{ text: 'DEMANDEUR', style: 'tableHeader' }, { text: `${demande.demandeur.prenom} ${demande.demandeur.nom}`, style: 'tableValue' }],
+						[{ text: 'CONTACT', style: 'tableHeader' }, { text: demande.demandeur.telephone, style: 'tableValue' }],
+						[{ text: 'ACTE DEMANDÉ', style: 'tableHeader' }, { text: typeLabel, style: 'tableValue' }],
+						[{ text: 'MODE DE PAIEMENT INITIAL', style: 'tableHeader' }, { text: modeLabel, style: 'tableValue' }],
+						...(paiement.reference ? [[{ text: 'RÉF. TRANSACTION INITIALE', style: 'tableHeader' }, { text: paiement.reference, style: 'tableValue' }]] : []),
+						...(remb.reference ? [[{ text: 'RÉF. REMBOURSEMENT', style: 'tableHeader' }, { text: remb.reference, style: 'tableValue' }]] : []),
+						[{ text: 'DATE DU REMBOURSEMENT', style: 'tableHeader' }, { text: dateRemb.toLocaleDateString('fr-FR'), style: 'tableValue' }],
+						[{ text: 'MONTANT REMBOURSÉ', style: 'tableHeader' }, { text: `${montant.toLocaleString('fr-FR')} FCFA`, style: 'montant_cell' }]
+					]
+				},
+				layout: { fillColor: (i) => i % 2 === 0 ? '#f8fafc' : null, hLineColor: () => '#e2e8f0', vLineColor: () => '#e2e8f0' }
+			},
+			{ text: '\n' },
+
+			// Tampon REMBOURSÉ
+			{
+				canvas: [
+					{ type: 'rect', x: 0, y: 0, w: 180, h: 52, r: 6, lineWidth: 3, lineColor: '#f59e0b', fillOpacity: 0 }
+				],
+				absolutePosition: { x: 305, y: 520 }
+			},
+			{ text: 'REMBOURSÉ', style: 'rembourse_stamp', absolutePosition: { x: 305, y: 533 }, width: 180 },
+
+			{ text: '\n\n' },
+			{
+				text: `Ce bon de remboursement atteste que la somme de ${montant.toLocaleString('fr-FR')} FCFA a été restituée au demandeur suite au rejet administratif de sa demande. Aucun recours ultérieur sur ce montant ne sera accepté.`,
+				style: 'mention_legale', alignment: 'center'
+			},
+			{ text: '\n\n\n' },
+			{
+				columns: [
+					{
+						stack: [
+							{ text: 'Le Bénéficiaire', style: 'signature_label', alignment: 'center' },
+							{ text: '\n\n\n' },
+							{ canvas: [{ type: 'line', x1: 10, y1: 0, x2: 160, y2: 0, lineWidth: 1 }] },
+							{ text: `${demande.demandeur.prenom} ${demande.demandeur.nom}`, style: 'signature_name', alignment: 'center' }
+						]
+					},
+					{ width: 30, text: '' },
+					{
+						stack: [
+							{ text: `Le Superviseur — ${commune.nom}`, style: 'signature_label', alignment: 'center' },
+							{ text: '\n\n\n' },
+							{ canvas: [{ type: 'line', x1: 10, y1: 0, x2: 180, y2: 0, lineWidth: 1 }] },
+							{ text: remb.traite_par || 'Service Finances', style: 'signature_name', alignment: 'center' }
+						]
+					}
+				]
+			},
+			{ canvas: [{ type: 'ellipse', x: 0, y: 0, r1: 40, r2: 40, lineWidth: 2, lineColor: '#f59e0b', fillOpacity: 0 }], absolutePosition: { x: 390, y: 700 } }
+		],
+		styles: {
+			...BASE_STYLES,
+			titre_remb: { fontSize: 20, bold: true, color: '#92400e', margin: [0, 0, 0, 4] },
+			sous_titre: { fontSize: 9, color: '#f59e0b', margin: [0, 0, 0, 8] },
+			ref_text: { fontSize: 9, color: '#555', italics: true },
+			corps: { fontSize: 11, lineHeight: 1.6, color: '#333' },
+			montant_cell: { fontSize: 13, bold: true, color: '#d97706' },
+			rembourse_stamp: { fontSize: 20, bold: true, color: '#d97706', alignment: 'center' }
+		},
+		defaultStyle: { font: 'Roboto' }
+	};
+
+	const blob = await new Promise((resolve) => pdfMake.createPdf(docDefinition).getBlob(resolve));
+	triggerDownload(blob, `bon-remboursement-${demande.id}.pdf`);
+}

@@ -514,6 +514,19 @@
 				❌ Cette action est irréversible. Le citoyen sera informé du rejet.
 			</div>
 
+			{#if demande.paiement?.statut === 'paye' && ['mobile_money', 'en_ligne', 'online'].includes(demande.paiement?.mode)}
+				<div class="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4 text-sm text-amber-800 flex items-start gap-2">
+					<span class="text-lg flex-shrink-0">💸</span>
+					<div>
+						<p class="font-semibold">Paiement mobile money déjà encaissé</p>
+						<p class="mt-0.5">Un remboursement de <strong>{demande.paiement.montant?.toLocaleString('fr-FR')} FCFA</strong> sera automatiquement initié et transmis au superviseur pour traitement.</p>
+						{#if demande.paiement.reference}
+							<p class="mt-1 font-mono text-xs text-amber-600">Réf. transaction : {demande.paiement.reference}</p>
+						{/if}
+					</div>
+				</div>
+			{/if}
+
 			<div>
 				<label class="label" for="rejet-motif">
 					Motif du rejet <span class="text-red-500">*</span>

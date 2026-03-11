@@ -5,6 +5,22 @@
 	import DemandeDetailPanel from '$lib/components/DemandeDetailPanel.svelte';
 	import { TYPE_ACTE_LABELS, TYPE_ACTE_ICONS, CONCERNANT_LABELS, MODE_RECEPTION_LABELS, formatDate, formatDateTime, timeAgo, isEscaladee, isSLADepassee } from '$lib/utils/helpers.js';
 	import { toast } from '$lib/stores/toast.js';
+	import { downloadBonRemboursementPDF } from '$lib/utils/pdf.js';
+
+	let commune = null;
+	let genBonRemboursementLoading = false;
+
+	async function genBonRemboursement() {
+		if (!selectedDemande) return;
+		if (!commune) {
+			const cRes = await fetch('/api/commune');
+			if (cRes.ok) commune = await cRes.json();
+		}
+		genBonRemboursementLoading = true;
+		try { await downloadBonRemboursementPDF(selectedDemande, commune); }
+		catch(e) { console.error(e); toast('Erreur génération PDF', 'error'); }
+		genBonRemboursementLoading = false;
+	}
 
 	let allDemandes = [];
 	let utilisateurs = null;
@@ -16,6 +32,9 @@
 	// Réassignation
 	let showReassignModal = false;
 	let reassignAgentId = '';
+	let showRemboursementModal = false;
+	let remboursementRef = '';
+	let savingRemboursement = false;
 
 	// Escalade maire modal
 	let showEscaladeMaireModal = false;
@@ -50,15 +69,17 @@
 	}
 
 	$: escalades = allDemandes.filter(d => isEscaladee(d) && d.escalade.level === 'superviseur');
+	$: remboursements = allDemandes.filter(d => d.paiement?.remboursement?.statut === 'en_attente');
 	$: stats = {
 		total: allDemandes.length,
 		recues: allDemandes.filter(d => d.statut === 'recue').length,
 		en_cours: allDemandes.filter(d => d.statut === 'en_cours').length,
 		traitees: allDemandes.filter(d => ['traitee', 'disponible'].includes(d.statut)).length,
-		escalades: escalades.length
+		escalades: escalades.length,
+		remboursements: remboursements.length
 	};
 
-	$: displayList = activeTab === 'escalades' ? escalades : allDemandes;
+	$: displayList = activeTab === 'escalades' ? escalades : activeTab === 'remboursements' ? remboursements : allDemandes;
 
 	function agentName(agentId) {
 		const agent = utilisateurs?.agents?.find(a => a.id === agentId);
@@ -125,6 +146,25 @@
 			toast('Dossier escaladé au Maire', 'warning');
 		}
 		saving = false;
+	}
+
+	async function validerRemboursement() {
+		if (!selectedDemande) return;
+		savingRemboursement = true;
+		const res = await fetch(`/api/demandes/${selectedDemande.id}`, {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ remboursement_valide: { reference: remboursementRef }, par: 'sup_001' })
+		});
+		if (res.ok) {
+			await loadData();
+			showRemboursementModal = false;
+			remboursementRef = '';
+			toast('Remboursement validé et enregistré');
+		} else {
+			toast('Erreur lors de la validation', 'error');
+		}
+		savingRemboursement = false;
 	}
 
 	async function reassigner() {
@@ -197,6 +237,15 @@
 			Escalades reçues
 			{#if stats.escalades > 0}
 				<span class="bg-accent-500 text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center leading-none">{stats.escalades}</span>
+			{/if}
+		</button>
+		<button
+			on:click={() => activeTab = 'remboursements'}
+			class="px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 {activeTab === 'remboursements' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'}"
+		>
+			💸 Remboursements
+			{#if stats.remboursements > 0}
+				<span class="bg-amber-500 text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center leading-none">{stats.remboursements}</span>
 			{/if}
 		</button>
 	</div>
@@ -283,6 +332,56 @@
 						</div>
 					{/if}
 
+					<!-- Remboursement en attente -->
+					{#if selectedDemande.paiement?.remboursement?.statut === 'en_attente'}
+						<div class="card border-l-4 border-amber-400">
+							<div class="flex items-start gap-3 mb-3">
+								<span class="text-2xl">💸</span>
+								<div>
+									<h3 class="font-syne font-semibold text-amber-700">Remboursement à traiter</h3>
+									<p class="text-sm text-gray-600 mt-0.5">
+										Montant : <strong>{selectedDemande.paiement.montant?.toLocaleString('fr-FR')} FCFA</strong>
+									</p>
+									{#if selectedDemande.paiement.reference}
+										<p class="text-xs text-gray-400 font-mono mt-0.5">Réf. originale : {selectedDemande.paiement.reference}</p>
+									{/if}
+									<p class="text-xs text-gray-400 mt-0.5">Demandé le {new Date(selectedDemande.paiement.remboursement.date_demande).toLocaleDateString('fr-FR')}</p>
+								</div>
+							</div>
+							<button
+								on:click={() => { remboursementRef = ''; showRemboursementModal = true; }}
+								class="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-semibold text-sm rounded-lg transition-all"
+							>
+								✅ Valider le remboursement
+							</button>
+						</div>
+					{:else if selectedDemande.paiement?.remboursement?.statut === 'effectue'}
+						<div class="card border-l-4 border-green-400">
+							<div class="flex items-center gap-2 text-green-700 mb-3">
+								<span class="text-xl">✅</span>
+								<div>
+									<p class="font-semibold text-sm">Remboursement effectué</p>
+									<p class="text-xs text-gray-500">Par {selectedDemande.paiement.remboursement.traite_par} · {new Date(selectedDemande.paiement.remboursement.date_remboursement).toLocaleDateString('fr-FR')}</p>
+									{#if selectedDemande.paiement.remboursement.reference}
+										<p class="text-xs font-mono text-gray-400">Réf. : {selectedDemande.paiement.remboursement.reference}</p>
+									{/if}
+								</div>
+							</div>
+							<button
+								on:click={genBonRemboursement}
+								class="w-full flex items-center justify-center gap-2 text-sm font-medium px-4 py-2 rounded-lg border border-amber-200 text-amber-700 hover:bg-amber-50 transition-all"
+								disabled={genBonRemboursementLoading}
+							>
+								{#if genBonRemboursementLoading}
+									<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+								{:else}
+									<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+								{/if}
+								Télécharger le bon de remboursement
+							</button>
+						</div>
+					{/if}
+
 					<!-- Réassigner -->
 					<div class="card">
 						<h3 class="font-syne font-semibold text-gray-700 mb-2 text-sm">Réassigner l'agent</h3>
@@ -337,6 +436,71 @@
 				<button on:click={() => showEscaladeMaireModal = false} class="btn-ghost">Annuler</button>
 				<button on:click={escaladerMaire} class="btn-accent" disabled={saving || !escaladeMaireMotif.trim()}>
 					Escalader au Maire
+				</button>
+			</div>
+		</div>
+	</div>
+{/if}
+
+<!-- MODAL REMBOURSEMENT -->
+{#if showRemboursementModal && selectedDemande}
+	<div class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" on:click|self={() => showRemboursementModal = false}>
+		<div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
+			<div class="flex items-start justify-between mb-4">
+				<div>
+					<h3 class="font-syne font-bold text-lg text-gray-800">Valider le remboursement</h3>
+					<p class="text-sm text-gray-500 mt-0.5">Dossier {selectedDemande.id}</p>
+				</div>
+				<button on:click={() => showRemboursementModal = false} class="text-gray-400 hover:text-gray-600 p-1">
+					<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+					</svg>
+				</button>
+			</div>
+
+			<div class="bg-amber-50 border border-amber-100 rounded-xl p-4 mb-4">
+				<div class="flex justify-between text-sm mb-1">
+					<span class="text-gray-500">Demandeur</span>
+					<span class="font-medium">{selectedDemande.demandeur.prenom} {selectedDemande.demandeur.nom}</span>
+				</div>
+				<div class="flex justify-between text-sm mb-1">
+					<span class="text-gray-500">Montant à rembourser</span>
+					<span class="font-bold text-amber-700">{selectedDemande.paiement.montant?.toLocaleString('fr-FR')} FCFA</span>
+				</div>
+				{#if selectedDemande.paiement.reference}
+					<div class="flex justify-between text-sm">
+						<span class="text-gray-500">Réf. transaction originale</span>
+						<span class="font-mono text-xs">{selectedDemande.paiement.reference}</span>
+					</div>
+				{/if}
+			</div>
+
+			<div class="mb-4">
+				<label class="label" for="remb-ref">Référence de remboursement <span class="text-gray-400 font-normal">(optionnel)</span></label>
+				<input
+					id="remb-ref"
+					type="text"
+					bind:value={remboursementRef}
+					placeholder="Ex : REMB-MTN-2026-001"
+					class="input-field font-mono text-sm"
+				/>
+				<p class="text-xs text-gray-400 mt-1">Numéro de transaction de remboursement Mobile Money / Orange Money.</p>
+			</div>
+
+			<div class="flex gap-3 justify-end">
+				<button on:click={() => showRemboursementModal = false} class="btn-ghost">Annuler</button>
+				<button
+					on:click={validerRemboursement}
+					class="flex items-center gap-2 px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-lg transition-all"
+					disabled={savingRemboursement}
+				>
+					{#if savingRemboursement}
+						<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+							<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+							<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+						</svg>
+					{/if}
+					Confirmer le remboursement
 				</button>
 			</div>
 		</div>

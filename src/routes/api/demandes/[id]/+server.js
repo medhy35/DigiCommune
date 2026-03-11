@@ -51,6 +51,33 @@ export async function PATCH({ params, request }) {
 			note: body.note || '',
 			par: resolveUserName(body.par) || 'agent'
 		});
+
+		// Rejet + paiement mobile/en ligne déjà encaissé → déclencher remboursement automatiquement
+		if (body.statut === 'rejetee') {
+			const p = demande.paiement;
+			if (p?.statut === 'paye' && ['mobile_money', 'en_ligne', 'online'].includes(p.mode)) {
+				demande.paiement.remboursement = {
+					statut: 'en_attente',
+					date_demande: now,
+					reference: null,
+					date_remboursement: null,
+					traite_par: null
+				};
+				demande.historique.push({
+					statut: 'rejetee',
+					date: now,
+					note: `Remboursement initié — ${p.montant?.toLocaleString('fr-FR')} FCFA via ${p.mode === 'mobile_money' ? 'Mobile Money' : 'paiement en ligne'} (réf. transaction : ${p.reference || 'N/A'})`,
+					par: resolveUserName(body.par) || 'agent',
+					type: 'remboursement'
+				});
+				createNotification(
+					'superviseur',
+					'remboursement',
+					`Remboursement requis — dossier ${params.id} rejeté, paiement de ${p.montant?.toLocaleString('fr-FR')} FCFA à rembourser`,
+					params.id
+				);
+			}
+		}
 	}
 
 	// Update agent assignment
@@ -79,6 +106,26 @@ export async function PATCH({ params, request }) {
 			par: resolveUserName(body.par) || 'agent',
 			type: 'note'
 		});
+	}
+
+	// Valider remboursement mobile money (superviseur)
+	if (body.remboursement_valide) {
+		if (demande.paiement?.remboursement) {
+			demande.paiement.remboursement = {
+				...demande.paiement.remboursement,
+				statut: 'effectue',
+				reference: body.remboursement_valide.reference || null,
+				date_remboursement: now,
+				traite_par: resolveUserName(body.par) || 'superviseur'
+			};
+			demande.historique.push({
+				statut: demande.statut,
+				date: now,
+				note: `Remboursement effectué — ${demande.paiement.montant?.toLocaleString('fr-FR')} FCFA${body.remboursement_valide.reference ? ` · Réf. ${body.remboursement_valide.reference}` : ''}`,
+				par: resolveUserName(body.par) || 'superviseur',
+				type: 'remboursement'
+			});
+		}
 	}
 
 	// Valider paiement en mairie
