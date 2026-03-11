@@ -5,7 +5,7 @@
 	import DemandeDetailPanel from '$lib/components/DemandeDetailPanel.svelte';
 	import StatusBadge from '$lib/components/StatusBadge.svelte';
 	import { formatDateTime, isEscaladee } from '$lib/utils/helpers.js';
-	import { downloadActePDF } from '$lib/utils/pdf.js';
+	import { downloadActePDF, downloadAttestationDepotPDF, downloadRecuPaiementPDF } from '$lib/utils/pdf.js';
 	import { toast } from '$lib/stores/toast.js';
 
 	let demande = null;
@@ -28,6 +28,10 @@
 	// Note interne
 	let noteTexte = '';
 	let savingNote = false;
+
+	// Documents PDF
+	let generatingAttestation = false;
+	let generatingRecu = false;
 
 	// Envoi WhatsApp simulation
 	let whatsappSent = false;
@@ -138,12 +142,36 @@
 		generatingPdf = true;
 		try {
 			await downloadActePDF(demande, commune);
-			toast('PDF généré avec succès');
+			toast('Acte officiel généré avec succès');
 		} catch (e) {
 			console.error('PDF error:', e);
 			toast('Erreur lors de la génération du PDF', 'error');
 		}
 		generatingPdf = false;
+	}
+
+	async function genAttestation() {
+		if (!demande || !commune) return;
+		generatingAttestation = true;
+		try {
+			await downloadAttestationDepotPDF(demande, commune);
+			toast('Attestation de dépôt générée');
+		} catch (e) {
+			toast('Erreur génération attestation', 'error');
+		}
+		generatingAttestation = false;
+	}
+
+	async function genRecu() {
+		if (!demande || !commune) return;
+		generatingRecu = true;
+		try {
+			await downloadRecuPaiementPDF(demande, commune);
+			toast('Reçu de paiement généré');
+		} catch (e) {
+			toast('Erreur génération reçu', 'error');
+		}
+		generatingRecu = false;
 	}
 
 	function simulateWhatsapp() {
@@ -257,49 +285,93 @@
 				</div>
 			{/if}
 
-			<!-- PDF & WhatsApp -->
+			<!-- Documents PDF -->
 			<div class="card space-y-3">
-				<h3 class="font-syne font-semibold text-gray-700">Acte officiel</h3>
+				<h3 class="font-syne font-semibold text-gray-700">Documents</h3>
+
+				<!-- Attestation de dépôt — toujours disponible -->
 				<button
-					on:click={generatePDF}
-					class="btn-secondary w-full justify-center text-sm"
-					disabled={generatingPdf}
+					on:click={genAttestation}
+					class="w-full flex items-center gap-2 justify-center text-sm font-medium px-4 py-2.5 rounded-lg border border-blue-200 text-blue-700 hover:bg-blue-50 transition-all"
+					disabled={generatingAttestation}
 				>
-					{#if generatingPdf}
+					{#if generatingAttestation}
 						<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
 							<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
 							<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
 						</svg>
-						Génération...
 					{:else}
 						<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
 						</svg>
-						Générer PDF
 					{/if}
+					Attestation de dépôt
 				</button>
 
-				{#if demande.mode_reception === 'whatsapp'}
+				<!-- Reçu de paiement — si paiement validé -->
+				{#if demande.paiement?.statut === 'paye'}
 					<button
-						on:click={simulateWhatsapp}
-						class="w-full justify-center text-sm font-semibold px-4 py-2.5 rounded-lg border-2 transition-all
-							{whatsappSent ? 'border-primary-300 bg-primary-50 text-primary-700' : 'border-green-300 text-green-700 hover:bg-green-50'}"
-						disabled={sendingWhatsapp || whatsappSent}
+						on:click={genRecu}
+						class="w-full flex items-center gap-2 justify-center text-sm font-medium px-4 py-2.5 rounded-lg border border-primary-200 text-primary-700 hover:bg-primary-50 transition-all"
+						disabled={generatingRecu}
 					>
-						{#if sendingWhatsapp}
-							<svg class="w-4 h-4 animate-spin inline mr-2" fill="none" viewBox="0 0 24 24">
+						{#if generatingRecu}
+							<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
 								<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
 								<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
 							</svg>
-							Envoi...
-						{:else if whatsappSent}
-							✅ Envoyé par WhatsApp
 						{:else}
-							📱 Envoyer par WhatsApp
+							<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/>
+							</svg>
+						{/if}
+						Reçu de paiement ({demande.paiement.montant?.toLocaleString('fr-FR')} FCFA)
+					</button>
+				{/if}
+
+				<!-- Acte officiel — si dossier traité/disponible -->
+				{#if ['traitee', 'disponible'].includes(demande.statut)}
+					<button
+						on:click={generatePDF}
+						class="btn-secondary w-full justify-center text-sm"
+						disabled={generatingPdf}
+					>
+						{#if generatingPdf}
+							<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+								<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+								<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+							</svg>
+							Génération...
+						{:else}
+							<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+							</svg>
+							Acte officiel (PDF)
 						{/if}
 					</button>
-					{#if whatsappSent}
-						<p class="text-xs text-gray-400 text-center">Simulé — PDF envoyé au {demande.demandeur.telephone}</p>
+
+					{#if demande.mode_reception === 'whatsapp'}
+						<button
+							on:click={simulateWhatsapp}
+							class="w-full justify-center text-sm font-semibold px-4 py-2.5 rounded-lg border-2 transition-all
+								{whatsappSent ? 'border-primary-300 bg-primary-50 text-primary-700' : 'border-green-300 text-green-700 hover:bg-green-50'}"
+							disabled={sendingWhatsapp || whatsappSent}
+						>
+							{#if sendingWhatsapp}
+								<svg class="w-4 h-4 animate-spin inline mr-2" fill="none" viewBox="0 0 24 24">
+									<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+									<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+								</svg>
+								Envoi...
+							{:else if whatsappSent}
+								✅ Envoyé par WhatsApp
+							{:else}
+								📱 Envoyer par WhatsApp
+							{/if}
+						</button>
+						{#if whatsappSent}
+							<p class="text-xs text-gray-400 text-center">Simulé — PDF envoyé au {demande.demandeur.telephone}</p>
+						{/if}
 					{/if}
 				{/if}
 			</div>
