@@ -12,6 +12,43 @@
 	let saving = false;
 	let actionDone = null; // { id, action }
 
+	// ──────────────────────────────────────────────────────────
+	// Chart helpers (pure SVG, no library)
+	// ──────────────────────────────────────────────────────────
+	const DONUT_R = 70;
+	const DONUT_C = 2 * Math.PI * DONUT_R; // ≈ 439.82
+
+	/**
+	 * Builds stroke-dasharray / stroke-dashoffset data for each donut segment.
+	 * Formula:
+	 *   - rotate(-90) makes path start at 12 o'clock
+	 *   - dashoffset = -accumulated shifts each segment to start after the previous
+	 */
+	function buildDonutSegments(items, total) {
+		if (total === 0) return [];
+		let acc = 0;
+		return items.map(item => {
+			const dash = (item.value / total) * DONUT_C;
+			const seg = { ...item, dash, offset: -acc };
+			acc += dash;
+			return seg;
+		});
+	}
+
+	$: donutSegments = buildDonutSegments([
+		{ label: 'Reçues',      value: stats.recues,      color: '#60a5fa', bg: 'bg-blue-100',    dot: 'bg-blue-400'    },
+		{ label: 'En cours',    value: stats.en_cours,    color: '#fbbf24', bg: 'bg-amber-100',   dot: 'bg-amber-400'   },
+		{ label: 'Traitées',    value: stats.traitees,    color: '#34d399', bg: 'bg-emerald-100', dot: 'bg-emerald-400' },
+		{ label: 'Disponibles', value: stats.disponibles, color: '#059669', bg: 'bg-green-100',   dot: 'bg-green-600'   },
+		{ label: 'Rejetées',    value: stats.rejetees,    color: '#f87171', bg: 'bg-red-100',     dot: 'bg-red-400'     }
+	], stats.total);
+
+	$: typeActeData = [
+		{ label: 'Actes de naissance', value: stats.naissance, icon: '👶', color: '#3b82f6', bar: 'bg-blue-400',  text: 'text-blue-600',  bg: 'bg-blue-50'   },
+		{ label: 'Actes de mariage',   value: stats.mariage,   icon: '💍', color: '#f43f5e', bar: 'bg-rose-400',  text: 'text-rose-600',  bg: 'bg-rose-50'   },
+		{ label: "Actes de décès",     value: stats.deces,     icon: '🕊️', color: '#64748b', bar: 'bg-slate-400', text: 'text-slate-600', bg: 'bg-slate-50'  }
+	];
+
 	onMount(async () => {
 		const tab = new URL(window.location.href).searchParams.get('tab');
 		if (tab === 'critiques') activeTab = 'critiques';
@@ -35,17 +72,35 @@
 	$: casCritiques = allDemandes.filter(d => isEscaladee(d) && d.escalade.level === 'maire');
 
 	$: stats = {
-		total: allDemandes.length,
-		recues: allDemandes.filter(d => d.statut === 'recue').length,
-		en_cours: allDemandes.filter(d => d.statut === 'en_cours').length,
-		traitees: allDemandes.filter(d => d.statut === 'traitee').length,
-		disponibles: allDemandes.filter(d => d.statut === 'disponible').length,
-		rejetees: allDemandes.filter(d => d.statut === 'rejetee').length,
-		critiques: casCritiques.length,
-		naissance: allDemandes.filter(d => d.type_acte === 'naissance').length,
-		mariage: allDemandes.filter(d => d.type_acte === 'mariage').length,
-		deces: allDemandes.filter(d => d.type_acte === 'deces').length
+		total:      allDemandes.length,
+		recues:     allDemandes.filter(d => d.statut === 'recue').length,
+		en_cours:   allDemandes.filter(d => d.statut === 'en_cours').length,
+		traitees:   allDemandes.filter(d => d.statut === 'traitee').length,
+		disponibles:allDemandes.filter(d => d.statut === 'disponible').length,
+		rejetees:   allDemandes.filter(d => d.statut === 'rejetee').length,
+		critiques:  casCritiques.length,
+		naissance:  allDemandes.filter(d => d.type_acte === 'naissance').length,
+		mariage:    allDemandes.filter(d => d.type_acte === 'mariage').length,
+		deces:      allDemandes.filter(d => d.type_acte === 'deces').length
 	};
+
+	$: tauxTraitement = stats.total > 0
+		? Math.round((stats.traitees + stats.disponibles) / stats.total * 100)
+		: 0;
+
+	// Taux arc gauge (semi-circle): angle from -180° to 0° (left to right)
+	$: gaugeAngle = -180 + (tauxTraitement / 100) * 180;
+	$: gaugePath = (() => {
+		const r = 54, cx = 70, cy = 70;
+		const startRad = Math.PI; // 180° = left
+		const endRad = Math.PI - (tauxTraitement / 100) * Math.PI;
+		const sx = cx + r * Math.cos(startRad);
+		const sy = cy + r * Math.sin(startRad);
+		const ex = cx + r * Math.cos(endRad);
+		const ey = cy + r * Math.sin(endRad);
+		const large = tauxTraitement > 50 ? 1 : 0;
+		return `M ${sx} ${sy} A ${r} ${r} 0 ${large} 1 ${ex} ${ey}`;
+	})();
 
 	async function actionMaire(action) {
 		saving = true;
@@ -110,16 +165,19 @@
 		</button>
 	</div>
 
-	<!-- TAB: SYNTHESE -->
+	<!-- ═══════════════════════════════════════════════════════ -->
+	<!-- TAB: SYNTHESE                                           -->
+	<!-- ═══════════════════════════════════════════════════════ -->
 	{#if activeTab === 'synthese'}
 		<div class="space-y-6">
+
 			<!-- KPIs principaux -->
 			<div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
 				{#each [
-					{ label: 'Demandes totales', value: stats.total, icon: '📋', color: 'border-gray-200' },
-					{ label: 'En attente', value: stats.recues + stats.en_cours, icon: '⏳', color: 'border-amber-200' },
-					{ label: 'Traitées', value: stats.traitees + stats.disponibles, icon: '✅', color: 'border-primary-200' },
-					{ label: 'Cas critiques', value: stats.critiques, icon: '⚠️', color: 'border-orange-200' }
+					{ label: 'Demandes totales', value: stats.total,                        icon: '📋', color: 'border-gray-200'   },
+					{ label: 'En attente',        value: stats.recues + stats.en_cours,      icon: '⏳', color: 'border-amber-200'   },
+					{ label: 'Traitées',          value: stats.traitees + stats.disponibles, icon: '✅', color: 'border-primary-200' },
+					{ label: 'Cas critiques',     value: stats.critiques,                    icon: '⚠️', color: 'border-orange-200'  }
 				] as kpi}
 					<div class="card border-l-4 {kpi.color} pl-4">
 						<div class="text-2xl mb-1">{kpi.icon}</div>
@@ -129,67 +187,182 @@
 				{/each}
 			</div>
 
-			<!-- Répartition par statut -->
+			<!-- Charts row -->
 			<div class="grid sm:grid-cols-2 gap-4">
+
+				<!-- ── Donut chart : Répartition par statut ── -->
 				<div class="card">
 					<h2 class="font-syne font-semibold text-gray-700 mb-4">Répartition par statut</h2>
-					<div class="space-y-3">
-						{#each [
-							{ label: 'Reçues', value: stats.recues, color: 'bg-blue-400', pct: stats.total > 0 ? (stats.recues / stats.total * 100) : 0 },
-							{ label: 'En cours', value: stats.en_cours, color: 'bg-amber-400', pct: stats.total > 0 ? (stats.en_cours / stats.total * 100) : 0 },
-							{ label: 'Traitées', value: stats.traitees, color: 'bg-primary-400', pct: stats.total > 0 ? (stats.traitees / stats.total * 100) : 0 },
-							{ label: 'Disponibles', value: stats.disponibles, color: 'bg-primary-600', pct: stats.total > 0 ? (stats.disponibles / stats.total * 100) : 0 },
-							{ label: 'Rejetées', value: stats.rejetees, color: 'bg-red-400', pct: stats.total > 0 ? (stats.rejetees / stats.total * 100) : 0 }
-						] as row}
-							<div class="flex items-center gap-3 text-sm">
-								<span class="w-24 text-gray-600">{row.label}</span>
-								<div class="flex-1 bg-gray-100 rounded-full h-2">
-									<div class="h-2 rounded-full {row.color} transition-all" style="width: {row.pct}%"></div>
-								</div>
-								<span class="w-6 text-right font-semibold text-gray-700">{row.value}</span>
+
+					{#if loading}
+						<div class="flex items-center justify-center h-44 text-gray-300">
+							<svg class="w-8 h-8 animate-spin" fill="none" viewBox="0 0 24 24">
+								<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+								<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+							</svg>
+						</div>
+					{:else}
+						<div class="flex items-center gap-6">
+							<!-- SVG Donut -->
+							<div class="flex-shrink-0">
+								<svg viewBox="0 0 200 200" class="w-36 h-36" aria-label="Graphique en anneau – répartition par statut">
+									<!-- Track -->
+									<circle cx="100" cy="100" r="{DONUT_R}" fill="none" stroke="#f3f4f6" stroke-width="28"/>
+
+									{#if stats.total === 0}
+										<!-- Empty state ring -->
+										<circle cx="100" cy="100" r="{DONUT_R}" fill="none" stroke="#e5e7eb" stroke-width="28"
+											stroke-dasharray="{DONUT_C} 0"/>
+									{:else}
+										{#each donutSegments as seg}
+											{#if seg.value > 0}
+												<circle
+													cx="100" cy="100" r="{DONUT_R}"
+													fill="none"
+													stroke="{seg.color}"
+													stroke-width="28"
+													stroke-dasharray="{seg.dash} {DONUT_C}"
+													stroke-dashoffset="{seg.offset}"
+													stroke-linecap="butt"
+													transform="rotate(-90 100 100)"
+												/>
+											{/if}
+										{/each}
+									{/if}
+
+									<!-- Center label -->
+									<text x="100" y="93" text-anchor="middle" font-size="30" font-weight="700" fill="#1f2937" font-family="sans-serif">{stats.total}</text>
+									<text x="100" y="113" text-anchor="middle" font-size="11" fill="#9ca3af" font-family="sans-serif">demandes</text>
+								</svg>
 							</div>
-						{/each}
-					</div>
+
+							<!-- Legend -->
+							<div class="flex-1 space-y-1.5 min-w-0">
+								{#each donutSegments as seg}
+									<div class="flex items-center justify-between gap-2 text-sm">
+										<div class="flex items-center gap-2 min-w-0">
+											<span class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background-color: {seg.color}"></span>
+											<span class="text-gray-600 truncate">{seg.label}</span>
+										</div>
+										<div class="flex items-center gap-1.5 flex-shrink-0">
+											<span class="font-semibold text-gray-800">{seg.value}</span>
+											{#if stats.total > 0}
+												<span class="text-xs text-gray-400">({Math.round(seg.value / stats.total * 100)}%)</span>
+											{/if}
+										</div>
+									</div>
+								{/each}
+							</div>
+						</div>
+					{/if}
 				</div>
 
-				<div class="card">
-					<h2 class="font-syne font-semibold text-gray-700 mb-4">Répartition par type d'acte</h2>
-					<div class="space-y-4">
-						{#each [
-							{ label: 'Actes de naissance', value: stats.naissance, icon: '👶', color: 'text-blue-600', bg: 'bg-blue-50' },
-							{ label: 'Actes de mariage', value: stats.mariage, icon: '💍', color: 'text-rose-600', bg: 'bg-rose-50' },
-							{ label: 'Actes de décès', value: stats.deces, icon: '🕊️', color: 'text-slate-600', bg: 'bg-slate-50' }
-						] as item}
-							<div class="flex items-center justify-between p-3 rounded-xl {item.bg}">
-								<div class="flex items-center gap-3">
-									<span class="text-2xl">{item.icon}</span>
-									<span class="text-sm font-medium text-gray-700">{item.label}</span>
+				<!-- ── Bar chart : Types d'actes + Taux de traitement ── -->
+				<div class="card flex flex-col gap-4">
+					<div>
+						<h2 class="font-syne font-semibold text-gray-700 mb-3">Répartition par type d'acte</h2>
+						<div class="space-y-3">
+							{#each typeActeData as item}
+								{@const pct = stats.total > 0 ? Math.round(item.value / stats.total * 100) : 0}
+								<div>
+									<div class="flex items-center justify-between mb-1 text-sm">
+										<span class="flex items-center gap-2 text-gray-700">
+											<span class="text-base">{item.icon}</span>
+											{item.label}
+										</span>
+										<span class="font-semibold {item.text}">{item.value} <span class="font-normal text-gray-400 text-xs">({pct}%)</span></span>
+									</div>
+									<div class="h-2.5 bg-gray-100 rounded-full overflow-hidden">
+										<div
+											class="h-full rounded-full transition-all duration-700 {item.bar}"
+											style="width: {pct}%"
+										></div>
+									</div>
 								</div>
-								<span class="font-syne font-bold text-2xl {item.color}">{item.value}</span>
-							</div>
-						{/each}
+							{/each}
+						</div>
 					</div>
 
-					<div class="mt-4 pt-4 border-t border-gray-100">
-						<div class="flex items-center justify-between">
-							<div>
-								<p class="text-xs text-gray-400">Taux de traitement</p>
-								<p class="font-syne font-bold text-2xl text-primary-600">
-									{stats.total > 0 ? Math.round((stats.traitees + stats.disponibles) / stats.total * 100) : 0}%
-								</p>
+					<!-- Taux de traitement gauge -->
+					<div class="pt-3 border-t border-gray-100">
+						<h2 class="font-syne font-semibold text-gray-700 mb-3">Taux de traitement</h2>
+						<div class="flex items-end gap-6">
+							<!-- Semi-circle gauge -->
+							<div class="flex-shrink-0">
+								<svg viewBox="0 0 140 80" class="w-32 h-20" aria-label="Jauge taux de traitement {tauxTraitement}%">
+									<!-- Track arc (semi-circle) -->
+									<path
+										d="M 16 70 A 54 54 0 0 1 124 70"
+										fill="none"
+										stroke="#f3f4f6"
+										stroke-width="14"
+										stroke-linecap="round"
+									/>
+									<!-- Value arc -->
+									{#if tauxTraitement > 0}
+										<path
+											d="{gaugePath}"
+											fill="none"
+											stroke="#009A44"
+											stroke-width="14"
+											stroke-linecap="round"
+										/>
+									{/if}
+									<!-- Percentage text -->
+									<text x="70" y="72" text-anchor="middle" font-size="20" font-weight="700" fill="#1f2937" font-family="sans-serif">{tauxTraitement}%</text>
+								</svg>
 							</div>
-							<div>
-								<p class="text-xs text-gray-400">Délai moyen estimé</p>
-								<p class="font-syne font-bold text-2xl text-gray-700">~18h</p>
+							<div class="space-y-1 pb-2">
+								<div>
+									<p class="text-xs text-gray-400">Traitées + Disponibles</p>
+									<p class="font-syne font-bold text-xl text-primary-600">{stats.traitees + stats.disponibles}</p>
+								</div>
+								<div>
+									<p class="text-xs text-gray-400">Délai moyen estimé</p>
+									<p class="font-syne font-bold text-xl text-gray-700">~18h</p>
+								</div>
 							</div>
 						</div>
 					</div>
 				</div>
 			</div>
+
+			<!-- Rejected / Critical detail row -->
+			{#if stats.rejetees > 0 || stats.critiques > 0}
+				<div class="grid sm:grid-cols-2 gap-4">
+					{#if stats.rejetees > 0}
+						<div class="card border-l-4 border-red-200 flex items-center gap-4">
+							<div class="w-12 h-12 rounded-xl bg-red-100 flex items-center justify-center text-2xl flex-shrink-0">❌</div>
+							<div>
+								<p class="font-syne font-bold text-2xl text-red-600">{stats.rejetees}</p>
+								<p class="text-sm text-gray-500">demande{stats.rejetees > 1 ? 's' : ''} rejetée{stats.rejetees > 1 ? 's' : ''}</p>
+							</div>
+						</div>
+					{/if}
+					{#if stats.critiques > 0}
+						<div class="card border-l-4 border-accent-200 flex items-center gap-4">
+							<div class="w-12 h-12 rounded-xl bg-orange-100 flex items-center justify-center text-2xl flex-shrink-0">⚠️</div>
+							<div>
+								<p class="font-syne font-bold text-2xl text-accent-600">{stats.critiques}</p>
+								<p class="text-sm text-gray-500">cas critique{stats.critiques > 1 ? 's' : ''} en attente de décision</p>
+							</div>
+							<button
+								on:click={() => activeTab = 'critiques'}
+								class="ml-auto btn-accent text-sm py-2"
+							>
+								Traiter
+							</button>
+						</div>
+					{/if}
+				</div>
+			{/if}
+
 		</div>
 	{/if}
 
-	<!-- TAB: CAS CRITIQUES -->
+	<!-- ═══════════════════════════════════════════════════════ -->
+	<!-- TAB: CAS CRITIQUES                                      -->
+	<!-- ═══════════════════════════════════════════════════════ -->
 	{#if activeTab === 'critiques'}
 		{#if casCritiques.length === 0}
 			<div class="card text-center py-16 text-gray-400">
@@ -283,7 +456,9 @@
 		{/if}
 	{/if}
 
-	<!-- TAB: TOUTES LES DEMANDES (lecture seule) -->
+	<!-- ═══════════════════════════════════════════════════════ -->
+	<!-- TAB: TOUTES LES DEMANDES (lecture seule)                -->
+	<!-- ═══════════════════════════════════════════════════════ -->
 	{#if activeTab === 'toutes'}
 		{#if loading}
 			<div class="flex items-center justify-center py-16 text-gray-400">

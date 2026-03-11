@@ -29,6 +29,27 @@
 	let selectedDemande = null;
 	let saving = false;
 
+	// ──────────────────────────────────────────────────────────
+	// Filtres & recherche
+	// ──────────────────────────────────────────────────────────
+	let searchQuery = '';
+	let filterStatut = '';
+	let filterTypeActe = '';
+	let filterAgent = '';
+
+	$: activeFiltersCount =
+		(searchQuery.trim() ? 1 : 0) +
+		(filterStatut       ? 1 : 0) +
+		(filterTypeActe     ? 1 : 0) +
+		(filterAgent        ? 1 : 0);
+
+	function clearFilters() {
+		searchQuery   = '';
+		filterStatut  = '';
+		filterTypeActe = '';
+		filterAgent   = '';
+	}
+
 	// Réassignation
 	let showReassignModal = false;
 	let reassignAgentId = '';
@@ -68,18 +89,43 @@
 		loading = false;
 	}
 
-	$: escalades = allDemandes.filter(d => isEscaladee(d) && d.escalade.level === 'superviseur');
+	$: escalades     = allDemandes.filter(d => isEscaladee(d) && d.escalade.level === 'superviseur');
 	$: remboursements = allDemandes.filter(d => d.paiement?.remboursement?.statut === 'en_attente');
 	$: stats = {
-		total: allDemandes.length,
-		recues: allDemandes.filter(d => d.statut === 'recue').length,
-		en_cours: allDemandes.filter(d => d.statut === 'en_cours').length,
-		traitees: allDemandes.filter(d => ['traitee', 'disponible'].includes(d.statut)).length,
-		escalades: escalades.length,
+		total:          allDemandes.length,
+		recues:         allDemandes.filter(d => d.statut === 'recue').length,
+		en_cours:       allDemandes.filter(d => d.statut === 'en_cours').length,
+		traitees:       allDemandes.filter(d => ['traitee', 'disponible'].includes(d.statut)).length,
+		escalades:      escalades.length,
 		remboursements: remboursements.length
 	};
 
-	$: displayList = activeTab === 'escalades' ? escalades : activeTab === 'remboursements' ? remboursements : allDemandes;
+	// Tab base list (before text/dropdown filters)
+	$: baseList = activeTab === 'escalades'
+		? escalades
+		: activeTab === 'remboursements'
+			? remboursements
+			: allDemandes;
+
+	// Apply search + filters
+	$: filteredList = (() => {
+		let list = baseList;
+
+		const q = searchQuery.trim().toLowerCase();
+		if (q) {
+			list = list.filter(d =>
+				d.id.toLowerCase().includes(q) ||
+				`${d.demandeur.prenom} ${d.demandeur.nom}`.toLowerCase().includes(q) ||
+				(d.demandeur.telephone || '').includes(q)
+			);
+		}
+
+		if (filterStatut)   list = list.filter(d => d.statut === filterStatut);
+		if (filterTypeActe) list = list.filter(d => d.type_acte === filterTypeActe);
+		if (filterAgent)    list = list.filter(d => d.agent_id === filterAgent);
+
+		return list;
+	})();
 
 	function agentName(agentId) {
 		const agent = utilisateurs?.agents?.find(a => a.id === agentId);
@@ -190,7 +236,7 @@
 </svelte:head>
 
 <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6">
-	<!-- Stats -->
+	<!-- Header + export -->
 	<div class="mb-6 flex items-start justify-between gap-4">
 		<div>
 			<h1 class="font-syne font-bold text-2xl text-gray-800 mb-1">Supervision — Toutes les demandes</h1>
@@ -207,13 +253,14 @@
 		</button>
 	</div>
 
+	<!-- KPI cards -->
 	<div class="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6">
 		{#each [
-			{ label: 'Total', value: stats.total, color: 'bg-gray-50 text-gray-700' },
-			{ label: 'Reçues', value: stats.recues, color: 'bg-blue-50 text-blue-700' },
-			{ label: 'En cours', value: stats.en_cours, color: 'bg-amber-50 text-amber-700' },
-			{ label: 'Traitées', value: stats.traitees, color: 'bg-primary-50 text-primary-700' },
-			{ label: 'Escaladées', value: stats.escalades, color: 'bg-orange-50 text-orange-700' }
+			{ label: 'Total',      value: stats.total,          color: 'bg-gray-50 text-gray-700'      },
+			{ label: 'Reçues',     value: stats.recues,         color: 'bg-blue-50 text-blue-700'      },
+			{ label: 'En cours',   value: stats.en_cours,       color: 'bg-amber-50 text-amber-700'    },
+			{ label: 'Traitées',   value: stats.traitees,       color: 'bg-primary-50 text-primary-700'},
+			{ label: 'Escaladées', value: stats.escalades,      color: 'bg-orange-50 text-orange-700'  }
 		] as s}
 			<div class="card p-3">
 				<p class="font-syne font-bold text-2xl text-gray-800">{s.value}</p>
@@ -250,6 +297,81 @@
 		</button>
 	</div>
 
+	<!-- ══════════════════════════════════════════════════════ -->
+	<!-- Barre de recherche & filtres                           -->
+	<!-- ══════════════════════════════════════════════════════ -->
+	{#if activeTab !== 'remboursements'}
+		<div class="mb-4 space-y-2">
+			<div class="flex flex-wrap gap-2">
+				<!-- Recherche texte -->
+				<div class="relative flex-1 min-w-48">
+					<svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+					</svg>
+					<input
+						type="text"
+						bind:value={searchQuery}
+						placeholder="Rechercher par ID, nom, téléphone…"
+						class="input-field pl-9 text-sm"
+					/>
+				</div>
+
+				<!-- Filtre statut -->
+				<select bind:value={filterStatut} class="input-field text-sm min-w-36">
+					<option value="">Tous statuts</option>
+					<option value="recue">Reçue</option>
+					<option value="en_cours">En cours</option>
+					<option value="traitee">Traitée</option>
+					<option value="disponible">Disponible</option>
+					<option value="rejetee">Rejetée</option>
+				</select>
+
+				<!-- Filtre type d'acte -->
+				<select bind:value={filterTypeActe} class="input-field text-sm min-w-36">
+					<option value="">Tous types</option>
+					<option value="naissance">👶 Naissance</option>
+					<option value="mariage">💍 Mariage</option>
+					<option value="deces">🕊️ Décès</option>
+				</select>
+
+				<!-- Filtre agent (seulement sur "toutes") -->
+				{#if activeTab === 'toutes' && utilisateurs}
+					<select bind:value={filterAgent} class="input-field text-sm min-w-40">
+						<option value="">Tous les agents</option>
+						{#each utilisateurs.agents as agent}
+							<option value={agent.id}>{agent.prenom} {agent.nom}</option>
+						{/each}
+					</select>
+				{/if}
+
+				<!-- Réinitialiser filtres -->
+				{#if activeFiltersCount > 0}
+					<button
+						on:click={clearFilters}
+						class="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-500 hover:text-gray-700 border border-gray-200 rounded-xl hover:bg-gray-50 transition-all"
+					>
+						<svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+						</svg>
+						Réinitialiser
+						<span class="bg-gray-200 text-gray-600 text-xs font-bold px-1.5 py-0.5 rounded-full">{activeFiltersCount}</span>
+					</button>
+				{/if}
+			</div>
+
+			<!-- Résultats count quand filtres actifs -->
+			{#if activeFiltersCount > 0}
+				<p class="text-xs text-gray-500 pl-1">
+					<span class="font-semibold text-gray-700">{filteredList.length}</span> résultat{filteredList.length !== 1 ? 's' : ''}
+					sur {baseList.length} demande{baseList.length !== 1 ? 's' : ''}
+				</p>
+			{/if}
+		</div>
+	{/if}
+
+	<!-- ══════════════════════════════════════════════════════ -->
+	<!-- Grid liste / détail                                    -->
+	<!-- ══════════════════════════════════════════════════════ -->
 	<div class="grid lg:grid-cols-2 gap-4">
 		<!-- Liste -->
 		<div>
@@ -260,14 +382,23 @@
 						<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
 					</svg>
 				</div>
-			{:else if displayList.length === 0}
+			{:else if filteredList.length === 0}
 				<div class="card text-center py-12 text-gray-400">
-					<p class="text-4xl mb-2">✅</p>
-					<p>Aucune escalade en attente</p>
+					{#if activeFiltersCount > 0}
+						<p class="text-4xl mb-2">🔍</p>
+						<p class="font-medium text-gray-600">Aucun résultat</p>
+						<p class="text-sm mt-1">Essayez de modifier vos critères de recherche.</p>
+						<button on:click={clearFilters} class="mt-3 text-sm text-primary-600 hover:underline">
+							Réinitialiser les filtres
+						</button>
+					{:else}
+						<p class="text-4xl mb-2">✅</p>
+						<p>Aucune demande dans cet onglet</p>
+					{/if}
 				</div>
 			{:else}
 				<div class="space-y-2">
-					{#each displayList as demande}
+					{#each filteredList as demande}
 						<button
 							on:click={() => selectedDemande = demande}
 							class="w-full card p-4 text-left transition-all border-2
