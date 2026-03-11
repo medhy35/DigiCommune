@@ -52,7 +52,7 @@ export async function POST({ request }) {
 		personne_concernee: body.personne_concernee,
 		copies: body.copies,
 		mode_reception: body.mode_reception,
-		documents: body.documents || [],
+		documents: (body.documents || []).map(doc => renameDoc(doc, id, body.demandeur)),
 		paiement: body.paiement || { mode: 'mairie', statut: 'en_attente', montant: body.copies * 500 },
 		agent_id: assignAgent(demandes),
 		escalade: null,
@@ -83,6 +83,27 @@ export async function POST({ request }) {
 	);
 
 	return json(newDemande, { status: 201 });
+}
+
+/** Renomme un document uploadé avec une convention lisible et traçable.
+ *  Résultat : CI-2025-0042_CNI_KONAN-Amara.pdf
+ */
+const DOC_TYPE_LABELS = {
+	cni: 'CNI',
+	extrait: 'EXTRAIT-ACTE',
+	passeport: 'PASSEPORT',
+	justificatif: 'JUSTIFICATIF',
+	autre: 'DOCUMENT'
+};
+
+function renameDoc(doc, dossierId, demandeur) {
+	const parts = (doc.nom || 'fichier').split('.');
+	const ext = parts.length > 1 ? parts.pop().toLowerCase() : 'pdf';
+	const typeLabel = DOC_TYPE_LABELS[doc.type] || doc.type?.toUpperCase() || 'DOCUMENT';
+	// Normalise : majuscules, remplace espaces et apostrophes par tirets
+	const nom = demandeur.nom.toUpperCase().replace(/[\s'']/g, '-');
+	const prenom = demandeur.prenom.replace(/[\s'']/g, '-');
+	return { ...doc, nom: `${dossierId}_${typeLabel}_${nom}-${prenom}.${ext}` };
 }
 
 function assignAgent(demandes) {

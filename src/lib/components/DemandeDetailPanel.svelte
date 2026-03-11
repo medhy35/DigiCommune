@@ -130,11 +130,11 @@
 					<div class="border border-gray-100 rounded-xl overflow-hidden">
 						<!-- Info fichier -->
 						<div class="flex items-center gap-3 p-3 bg-gray-50">
-							<span class="text-xl flex-shrink-0">{doc.type === 'cni' ? '🪪' : '📄'}</span>
+							<span class="text-xl flex-shrink-0">{({'cni':'🪪','extrait':'📋','passeport':'🛂','justificatif':'📎'})[doc.type] || '📄'}</span>
 							<div class="flex-1 min-w-0">
-								<p class="font-medium text-gray-800 text-sm truncate">{doc.nom}</p>
+								<p class="font-medium text-gray-800 text-sm truncate" title={doc.nom}>{doc.nom}</p>
 								<p class="text-xs text-gray-400">
-									{doc.type === 'cni' ? 'Pièce d\'identité' : 'Extrait / autre document'}
+									{({'cni':"Pièce d'identité",'extrait':"Extrait d'acte",'passeport':'Passeport','justificatif':'Justificatif'})[doc.type] || doc.type}
 									{#if doc.taille} · {formatSize(doc.taille)}{/if}
 								</p>
 							</div>
