@@ -20,7 +20,7 @@
 		if (res.ok) {
 			goto(`/suivi/${searchNumero.trim().toUpperCase()}`);
 		} else {
-			searchError = 'Aucune demande trouvée avec ce numéro. Vérifiez le format : CI-2025-XXXX';
+			searchError = 'Aucune demande trouvée avec ce numéro. Vérifiez le format : CI-XXXXXXXXXX';
 		}
 		searching = false;
 	}
@@ -179,7 +179,7 @@
 				<input
 					type="text"
 					bind:value={searchNumero}
-					placeholder="Ex : CI-2025-0001"
+					placeholder="Ex : CI-1741231847"
 					class="input-field flex-1 text-center font-mono uppercase"
 					maxlength="16"
 				/>

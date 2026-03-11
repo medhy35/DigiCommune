@@ -65,9 +65,9 @@
 					id="numero"
 					type="text"
 					bind:value={numero}
-					placeholder="CI-2025-XXXX"
+					placeholder="CI-XXXXXXXXXX"
 					class="input-field text-center font-mono text-lg uppercase {searchError ? 'border-red-400' : ''}"
-					maxlength="16"
+					maxlength="13"
 					autocomplete="off"
 				/>
 			</div>

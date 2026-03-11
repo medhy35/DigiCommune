@@ -32,13 +32,9 @@ export async function POST({ request }) {
 	const body = await request.json();
 	const demandes = readDemandes();
 
-	// Generate ID
-	const year = new Date().getFullYear();
-	const maxNum = demandes
-		.map(d => parseInt(d.id.split('-')[2] || '0'))
-		.reduce((a, b) => Math.max(a, b), 0);
-	const newNum = String(maxNum + 1).padStart(4, '0');
-	const id = `CI-${year}-${newNum}`;
+	// Génère un ID sur 10 chiffres : base timestamp secondes (6 chiffres, change ~toutes les 2h45)
+	// + suffixe aléatoire 4 chiffres → imprévisible, jamais séquentiel, garanti unique
+	const id = generateId(demandes);
 
 	const now = new Date().toISOString();
 	const newDemande = {
@@ -85,8 +81,21 @@ export async function POST({ request }) {
 	return json(newDemande, { status: 201 });
 }
 
+/** Génère un numéro de dossier unique sur 10 chiffres.
+ *  Format : CI-XXXXXXXXXX
+ *  - 6 premiers chiffres : Math.floor(timestamp_s / 10000) → ancrage temporel, change ~toutes les 2h45
+ *  - 4 derniers chiffres : random 1000-9999 → casse toute séquentialité prévisible
+ *  Collision check : si le même ID existe déjà (astronomiquement rare), on régénère.
+ */
+function generateId(demandes) {
+	const ts = Math.floor(Date.now() / 1000);
+	const rand = Math.floor(Math.random() * 9000) + 1000;
+	const id = `CI-${Math.floor(ts / 10000)}${rand}`;
+	return demandes.some(d => d.id === id) ? generateId(demandes) : id;
+}
+
 /** Renomme un document uploadé avec une convention lisible et traçable.
- *  Résultat : CI-2025-0042_CNI_KONAN-Amara.pdf
+ *  Résultat : CI-1741231234_CNI_KONAN-Amara.pdf
  */
 const DOC_TYPE_LABELS = {
 	cni: 'CNI',
