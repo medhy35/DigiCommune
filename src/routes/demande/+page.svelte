@@ -1,6 +1,8 @@
 <script>
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
+	import { downloadAttestationDepotPDF } from '$lib/utils/pdf.js';
+	import { toast } from '$lib/stores/toast.js';
 
 	let currentStep = 1;
 
@@ -125,6 +127,20 @@
 		window.scrollTo({ top: 0, behavior: 'smooth' });
 	}
 	function prevStep() { currentStep--; window.scrollTo({ top: 0, behavior: 'smooth' }); }
+	function goToStep(n) { currentStep = n; window.scrollTo({ top: 0, behavior: 'smooth' }); }
+
+	let genAttestationLoading = false;
+	async function genAttestation() {
+		if (!newDemande || !commune) return;
+		genAttestationLoading = true;
+		try {
+			await downloadAttestationDepotPDF(newDemande, commune);
+			toast('Attestation de dépôt téléchargée');
+		} catch(e) {
+			toast('Erreur génération attestation', 'error');
+		}
+		genAttestationLoading = false;
+	}
 
 	function initiatePayment() {
 		if (!mobileOperator) { errors.operator = 'Choisissez un opérateur.'; return; }
@@ -263,6 +279,25 @@
 				{/if}
 			</dl>
 		</div>
+		<!-- Attestation de dépôt -->
+		<button
+			on:click={genAttestation}
+			class="w-full flex items-center justify-center gap-2 mb-4 px-4 py-3 border-2 border-blue-200 text-blue-700 hover:bg-blue-50 font-semibold rounded-xl transition-all"
+			disabled={genAttestationLoading}
+		>
+			{#if genAttestationLoading}
+				<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+					<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+					<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+				</svg>
+			{:else}
+				<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+				</svg>
+			{/if}
+			Télécharger mon attestation de dépôt
+		</button>
+		<p class="text-xs text-gray-400 text-center mb-4">Conservez ce document comme preuve de dépôt de votre demande.</p>
 		<div class="flex flex-col sm:flex-row gap-3 justify-center">
 			<a href="/suivi/{newDemande.id}" class="btn-primary">Suivre ma demande</a>
 			<a href="/" class="btn-secondary">Retour à l'accueil</a>
@@ -693,14 +728,20 @@
 		<p class="text-sm text-gray-500 mb-6">Vérifiez tout avant d'envoyer.</p>
 		<div class="space-y-3">
 			<div class="bg-gray-50 rounded-xl p-4">
-				<h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2.5">Identité</h3>
+				<div class="flex items-center justify-between mb-2.5">
+					<h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Identité</h3>
+					<button on:click={() => goToStep(1)} class="text-xs text-primary-600 hover:text-primary-800 font-medium flex items-center gap-1 hover:underline">✏️ Modifier</button>
+				</div>
 				<dl class="space-y-1.5 text-sm">
 					<div class="flex justify-between"><dt class="text-gray-500">Nom complet</dt><dd class="font-medium">{form.prenom} {form.nom}</dd></div>
 					<div class="flex justify-between"><dt class="text-gray-500">Téléphone</dt><dd class="font-medium">{form.telephone} ✅</dd></div>
 				</dl>
 			</div>
 			<div class="bg-gray-50 rounded-xl p-4">
-				<h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2.5">Demande</h3>
+				<div class="flex items-center justify-between mb-2.5">
+					<h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Demande</h3>
+					<button on:click={() => goToStep(2)} class="text-xs text-primary-600 hover:text-primary-800 font-medium flex items-center gap-1 hover:underline">✏️ Modifier</button>
+				</div>
 				<dl class="space-y-1.5 text-sm">
 					<div class="flex justify-between"><dt class="text-gray-500">Type d'acte</dt><dd class="font-medium">{TYPE_LABELS[form.type_acte] || '—'}</dd></div>
 					<div class="flex justify-between"><dt class="text-gray-500">Concernant</dt><dd class="font-medium">{CONCERNANT_LABELS[form.concernant] || '—'}</dd></div>
@@ -720,7 +761,10 @@
 				</div>
 			{/if}
 			<div class="bg-gray-50 rounded-xl p-4">
-				<h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2.5">Paiement</h3>
+				<div class="flex items-center justify-between mb-2.5">
+					<h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Paiement</h3>
+					<button on:click={() => goToStep(3)} class="text-xs text-primary-600 hover:text-primary-800 font-medium flex items-center gap-1 hover:underline">✏️ Modifier</button>
+				</div>
 				<div class="flex justify-between text-sm"><dt class="text-gray-500">Montant</dt><dd class="font-bold">{montantTotal.toLocaleString('fr-FR')} FCFA</dd></div>
 				<div class="flex justify-between text-sm mt-1.5">
 					<dt class="text-gray-500">Mode</dt>

@@ -4,22 +4,43 @@
 	import Timeline from '$lib/components/Timeline.svelte';
 	import StatusBadge from '$lib/components/StatusBadge.svelte';
 	import { TYPE_ACTE_LABELS, TYPE_ACTE_ICONS, CONCERNANT_LABELS, MODE_RECEPTION_LABELS, formatDate, formatDateTime } from '$lib/utils/helpers.js';
+	import { downloadAttestationDepotPDF, downloadRecuPaiementPDF } from '$lib/utils/pdf.js';
 
 	let demande = null;
+	let commune = null;
 	let loading = true;
 	let error = null;
+	let genAttestationLoading = false;
+	let genRecuLoading = false;
 
 	$: numero = $page.params.numero;
 
 	onMount(async () => {
-		const res = await fetch(`/api/demandes/${numero}`);
-		if (res.ok) {
-			demande = await res.json();
-		} else {
-			error = 'Demande introuvable. Vérifiez votre numéro de dossier.';
-		}
+		const [dRes, cRes] = await Promise.all([
+			fetch(`/api/demandes/${numero}`),
+			fetch('/api/commune')
+		]);
+		if (dRes.ok) demande = await dRes.json();
+		else error = 'Demande introuvable. Vérifiez votre numéro de dossier.';
+		if (cRes.ok) commune = await cRes.json();
 		loading = false;
 	});
+
+	async function genAttestation() {
+		if (!demande || !commune) return;
+		genAttestationLoading = true;
+		try { await downloadAttestationDepotPDF(demande, commune); }
+		catch(e) { console.error(e); }
+		genAttestationLoading = false;
+	}
+
+	async function genRecu() {
+		if (!demande || !commune) return;
+		genRecuLoading = true;
+		try { await downloadRecuPaiementPDF(demande, commune); }
+		catch(e) { console.error(e); }
+		genRecuLoading = false;
+	}
 </script>
 
 <svelte:head>
@@ -129,6 +150,41 @@
 				</div>
 			</div>
 		{/if}
+
+		<!-- Documents téléchargeables -->
+		<div class="card mt-4 space-y-3">
+			<h2 class="font-syne font-semibold text-gray-700 text-sm">Mes documents</h2>
+
+			<!-- Attestation de dépôt — toujours disponible -->
+			<button
+				on:click={genAttestation}
+				class="w-full flex items-center gap-2 justify-center text-sm font-medium px-4 py-2.5 rounded-lg border border-blue-200 text-blue-700 hover:bg-blue-50 transition-all"
+				disabled={genAttestationLoading}
+			>
+				{#if genAttestationLoading}
+					<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+				{:else}
+					<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+				{/if}
+				Attestation de dépôt
+			</button>
+
+			<!-- Reçu paiement — si payé -->
+			{#if demande.paiement?.statut === 'paye'}
+				<button
+					on:click={genRecu}
+					class="w-full flex items-center gap-2 justify-center text-sm font-medium px-4 py-2.5 rounded-lg border border-primary-200 text-primary-700 hover:bg-primary-50 transition-all"
+					disabled={genRecuLoading}
+				>
+					{#if genRecuLoading}
+						<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+					{:else}
+						<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+					{/if}
+					Reçu de paiement — {demande.paiement.montant?.toLocaleString('fr-FR')} FCFA
+				</button>
+			{/if}
+		</div>
 
 		<div class="mt-4 text-center">
 			<a href="/" class="text-sm text-gray-400 hover:text-primary-600 transition-colors">← Retour à l'accueil</a>
