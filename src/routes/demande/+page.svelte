@@ -101,14 +101,16 @@
 	function validateStep2() {
 		errors = {};
 		if (!form.type_acte) errors.type_acte = 'Choisissez un type.';
-		if (!form.concernant) errors.concernant = 'Choisissez qui est concerné.';
-		if (form.concernant !== 'soi-meme') {
-			if (!form.personne_nom.trim()) errors.personne_nom = 'Nom requis.';
-			if (!form.personne_date_naissance) errors.personne_date_naissance = 'Date requise.';
+		if (ACTES_CIVILS.includes(form.type_acte)) {
+			if (!form.concernant) errors.concernant = 'Choisissez qui est concerné.';
+			if (form.concernant !== 'soi-meme') {
+				if (!form.personne_nom.trim()) errors.personne_nom = 'Nom requis.';
+				if (!form.personne_date_naissance) errors.personne_date_naissance = 'Date requise.';
+			}
+			if (!form.date_evenement) errors.date_evenement = 'La date est requise.';
 		}
-		if (!form.date_evenement) errors.date_evenement = 'La date est requise.';
-		if (!uploadedDocs.cni) errors.cni = 'La pièce d\'identité est obligatoire.';
-		if (!form.copies || form.copies < 1) errors.copies = 'Min. 1 copie.';
+		if (!uploadedDocs.cni) errors.cni = 'Ce document est obligatoire.';
+		if (isPerCopy && (!form.copies || form.copies < 1)) errors.copies = 'Min. 1 copie.';
 		return Object.keys(errors).length === 0;
 	}
 
@@ -184,7 +186,7 @@
 					paiement: {
 						mode: paymentMode,
 						statut: paymentMode === 'online' ? 'paye' : 'en_attente',
-						montant: Number(form.copies) * 500,
+						montant: montantTotal,
 						reference: paymentRef || null,
 						operateur: mobileOperator || null
 					}
@@ -194,13 +196,76 @@
 		} finally { submitting = false; }
 	}
 
-	const TYPE_LABELS = { naissance: 'Acte de naissance', mariage: 'Acte de mariage', deces: 'Acte de décès' };
-	const TYPE_ICONS = { naissance: '👶', mariage: '💍', deces: '🕊️' };
+	const TYPE_LABELS = {
+		naissance: 'Acte de naissance', mariage: 'Acte de mariage', deces: 'Acte de décès',
+		attestation_concubinage: 'Attestation de concubinage',
+		certification_documents: 'Certification de documents',
+		legalisation: 'Légalisation',
+		duplicata_livret: 'Duplicata du livret de famille',
+		certificat_vie_entretien: 'Certificat de vie et entretien',
+		fiche_familiale: 'Fiche familiale d\'état civil',
+		fiche_individuelle: 'Fiche individuelle d\'état civil'
+	};
+	const TYPE_ICONS = {
+		naissance: '👶', mariage: '💍', deces: '🕊️',
+		attestation_concubinage: '🤝', certification_documents: '✅',
+		legalisation: '🔏', duplicata_livret: '📋',
+		certificat_vie_entretien: '👨‍👩‍👧', fiche_familiale: '👪', fiche_individuelle: '🙋'
+	};
 	const CONCERNANT_LABELS = { 'soi-meme': 'Vous-même', enfant: 'Un enfant', parent: 'Un parent' };
 	const MODE_LABELS = { retrait: 'Retrait en mairie', whatsapp: 'PDF par WhatsApp' };
 	const DATE_LABELS = { naissance: 'Date de naissance sur l\'acte', mariage: 'Date du mariage', deces: 'Date du décès' };
 
-	$: montantTotal = form.copies * 500;
+	// Services qui utilisent "acte civil" (concernant + date_evenement + registre)
+	const ACTES_CIVILS = ['naissance', 'mariage', 'deces'];
+	// Services facturés par copie
+	const PER_COPY_SERVICES = ['naissance', 'mariage', 'deces', 'certification_documents'];
+	// Frais fixes par type
+	const FRAIS_FIXES = {
+		attestation_concubinage: 500, legalisation: 500,
+		duplicata_livret: 5500, certificat_vie_entretien: 1000,
+		fiche_familiale: 5500, fiche_individuelle: 5500
+	};
+
+	$: isActeCivil = ACTES_CIVILS.includes(form.type_acte);
+	$: isPerCopy = PER_COPY_SERVICES.includes(form.type_acte);
+	$: montantTotal = isPerCopy
+		? form.copies * 500
+		: (FRAIS_FIXES[form.type_acte] || 0);
+
+	// Groupes de services pour le sélecteur
+	const SERVICE_GROUPS = [
+		{
+			label: 'Actes civils', icon: '📄',
+			services: [
+				['naissance', '👶', 'Naissance'],
+				['mariage', '💍', 'Mariage'],
+				['deces', '🕊️', 'Décès']
+			]
+		},
+		{
+			label: 'Attestations & Légalisations', icon: '📜',
+			services: [
+				['attestation_concubinage', '🤝', 'Concubinage'],
+				['legalisation', '🔏', 'Légalisation'],
+				['certification_documents', '✅', 'Certification']
+			]
+		},
+		{
+			label: 'Livret de famille', icon: '📖',
+			services: [
+				['duplicata_livret', '📋', 'Duplicata livret']
+			]
+		},
+		{
+			label: 'Certificats & Fiches', icon: '🏛️',
+			services: [
+				['certificat_vie_entretien', '👨‍👩‍👧', 'Vie & entretien'],
+				['fiche_familiale', '👪', 'Fiche familiale'],
+				['fiche_individuelle', '🙋', 'Fiche individuelle']
+			]
+		}
+	];
 
 	const DOCS_REQUIS = {
 		naissance: [
@@ -214,6 +279,34 @@
 		deces: [
 			{ field: 'cni', label: 'Pièce d\'identité du demandeur', hint: 'CNI, passeport ou document officiel', required: true },
 			{ field: 'extrait', label: 'Document du défunt (si disponible)', hint: 'Pour faciliter la recherche', required: false }
+		],
+		attestation_concubinage: [
+			{ field: 'cni', label: 'Pièce d\'identité des deux concubins', hint: 'CNI, passeport ou carte de séjour (joindre les deux)', required: true },
+			{ field: 'extrait', label: 'Attestation sur l\'honneur signée', hint: 'Lettre rédigée, datée et signée par les deux concubins', required: true }
+		],
+		certification_documents: [
+			{ field: 'cni', label: 'Pièce d\'identité du demandeur', hint: 'CNI de l\'intéressé ou d\'un parent (père, mère, tuteur)', required: true },
+			{ field: 'extrait', label: 'Document original à certifier', hint: 'L\'original est obligatoire pour comparer avec la photocopie', required: true }
+		],
+		legalisation: [
+			{ field: 'cni', label: 'Pièce d\'identité du signataire', hint: 'CNI, passeport ou carte de séjour', required: true },
+			{ field: 'extrait', label: 'Document à légaliser', hint: 'Document revêtu de la signature du demandeur', required: true }
+		],
+		duplicata_livret: [
+			{ field: 'cni', label: 'Copie de l\'acte de mariage', hint: 'Ou les références de l\'acte (numéro, date, lieu)', required: true },
+			{ field: 'extrait', label: 'Certificat de perte', hint: 'Délivré par la police ou la gendarmerie', required: true }
+		],
+		certificat_vie_entretien: [
+			{ field: 'cni', label: 'Pièce d\'identité du parent / tuteur', hint: 'Photocopie de la CNI ou tout document avec photo', required: true },
+			{ field: 'extrait', label: 'Extrait d\'acte de naissance des enfants', hint: 'Originaux de moins de 3 mois — un par enfant', required: true }
+		],
+		fiche_familiale: [
+			{ field: 'cni', label: 'Pièce d\'identité du déclarant (père ou mère)', hint: 'Photocopie de la CNI ou pièce officielle', required: true },
+			{ field: 'extrait', label: 'Extraits de naissance des enfants ou livret de famille', hint: 'En cas de mariage légal, le livret suffit', required: true }
+		],
+		fiche_individuelle: [
+			{ field: 'cni', label: 'Pièce d\'identité', hint: 'De l\'intéressé ou de la personne qui fait la démarche', required: true },
+			{ field: 'extrait', label: 'Extrait d\'acte de naissance de l\'intéressé', hint: 'De la personne concernée par la fiche', required: true }
 		]
 	};
 	$: currentDocs = DOCS_REQUIS[form.type_acte] || DOCS_REQUIS.naissance;
@@ -261,8 +354,8 @@
 		<div class="card mb-4 text-left">
 			<h3 class="font-syne font-semibold text-gray-700 mb-3">Récapitulatif</h3>
 			<dl class="space-y-2 text-sm">
-				<div class="flex justify-between"><dt class="text-gray-500">Type d'acte</dt><dd class="font-medium">{TYPE_LABELS[newDemande.type_acte]}</dd></div>
-				<div class="flex justify-between"><dt class="text-gray-500">Copies</dt><dd class="font-medium">{newDemande.copies}</dd></div>
+				<div class="flex justify-between"><dt class="text-gray-500">Service</dt><dd class="font-medium">{TYPE_LABELS[newDemande.type_acte] || newDemande.type_acte}</dd></div>
+				{#if newDemande.copies > 1 || PER_COPY_SERVICES.includes(newDemande.type_acte)}<div class="flex justify-between"><dt class="text-gray-500">Copies</dt><dd class="font-medium">{newDemande.copies}</dd></div>{/if}
 				<div class="flex justify-between"><dt class="text-gray-500">Réception</dt><dd class="font-medium">{MODE_LABELS[newDemande.mode_reception]}</dd></div>
 				<div class="flex justify-between border-t border-gray-100 pt-2">
 					<dt class="text-gray-500">Paiement</dt>
@@ -402,20 +495,30 @@
 		<div class="space-y-5">
 
 			<div>
-				<label class="label">Type d'acte <span class="text-red-500">*</span></label>
-				<div class="grid grid-cols-3 gap-3">
-					{#each [['naissance','👶','Naissance'],['mariage','💍','Mariage'],['deces','🕊️','Décès']] as [val, icon, lbl]}
-						<button type="button" on:click={() => form.type_acte = val}
-							class="border-2 rounded-xl p-3 text-center transition-all
-								{form.type_acte === val ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-gray-200 hover:border-gray-300 text-gray-600'}">
-							<div class="text-2xl mb-1">{icon}</div>
-							<div class="text-xs font-medium">{lbl}</div>
-						</button>
+				<label class="label">Type de service <span class="text-red-500">*</span></label>
+				<div class="space-y-3">
+					{#each SERVICE_GROUPS as group}
+						<div>
+							<p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+								<span>{group.icon}</span>{group.label}
+							</p>
+							<div class="grid grid-cols-3 gap-2">
+								{#each group.services as [val, icon, lbl]}
+									<button type="button" on:click={() => { form.type_acte = val; form.concernant = ''; }}
+										class="border-2 rounded-xl p-3 text-center transition-all
+											{form.type_acte === val ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-gray-200 hover:border-gray-300 text-gray-600'}">
+										<div class="text-2xl mb-1">{icon}</div>
+										<div class="text-xs font-medium leading-tight">{lbl}</div>
+									</button>
+								{/each}
+							</div>
+						</div>
 					{/each}
 				</div>
 				{#if errors.type_acte}<p class="text-xs text-red-500 mt-1">{errors.type_acte}</p>{/if}
 			</div>
 
+			{#if isActeCivil}
 			<div>
 				<label class="label">Concernant <span class="text-red-500">*</span></label>
 				<div class="grid grid-cols-3 gap-3">
@@ -430,8 +533,9 @@
 				</div>
 				{#if errors.concernant}<p class="text-xs text-red-500 mt-1">{errors.concernant}</p>{/if}
 			</div>
+			{/if}
 
-			{#if form.concernant && form.concernant !== 'soi-meme'}
+			{#if isActeCivil && form.concernant && form.concernant !== 'soi-meme'}
 				<div class="bg-gray-50 rounded-xl p-4 space-y-3 border border-gray-100">
 					<p class="text-sm font-medium text-gray-700">Personne concernée par l'acte</p>
 					<div class="grid grid-cols-2 gap-3">
@@ -453,7 +557,8 @@
 				</div>
 			{/if}
 
-			<!-- Registre + Date de l'acte -->
+			{#if isActeCivil}
+			<!-- Registre + Date de l'acte (actes civils uniquement) -->
 			<div class="grid grid-cols-2 gap-4">
 				<div>
 					<label class="label" for="registre">
@@ -465,7 +570,7 @@
 				</div>
 				<div>
 					<label class="label" for="date_evt">
-						{form.type_acte ? DATE_LABELS[form.type_acte] : 'Date de l\'acte'} <span class="text-red-500">*</span>
+						{form.type_acte ? (DATE_LABELS[form.type_acte] || 'Date de l\'acte') : 'Date de l\'acte'} <span class="text-red-500">*</span>
 					</label>
 					<input id="date_evt" type="date" bind:value={form.date_evenement} class="input-field {errors.date_evenement ? 'border-red-400' : ''}"/>
 					{#if errors.date_evenement}<p class="text-xs text-red-500 mt-1">{errors.date_evenement}</p>{/if}
@@ -477,6 +582,7 @@
 					<svg class="w-4 h-4 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
 					Sans numéro de registre, le traitement peut prendre plus de temps. Indiquez-le si vous le connaissez.
 				</div>
+			{/if}
 			{/if}
 
 			<!-- Documents à joindre -->
@@ -538,6 +644,7 @@
 			</div>
 
 			<!-- Copies + frais -->
+			{#if isPerCopy}
 			<div>
 				<label class="label">Nombre de copies <span class="text-red-500">*</span></label>
 				<div class="flex items-center gap-4">
@@ -554,6 +661,20 @@
 				</div>
 				{#if errors.copies}<p class="text-xs text-red-500 mt-1">{errors.copies}</p>{/if}
 			</div>
+			{:else if montantTotal > 0}
+			<div class="flex items-center gap-3 bg-amber-50 border border-amber-100 rounded-xl px-4 py-3">
+				<span class="text-2xl">💰</span>
+				<div>
+					<p class="text-xs text-amber-600">Frais</p>
+					<p class="font-bold text-amber-800">{montantTotal.toLocaleString('fr-FR')} FCFA</p>
+				</div>
+			</div>
+			{:else if form.type_acte}
+			<div class="flex items-center gap-3 bg-primary-50 border border-primary-100 rounded-xl px-4 py-3">
+				<span class="text-2xl">✅</span>
+				<p class="text-sm text-primary-700 font-medium">Démarche gratuite</p>
+			</div>
+			{/if}
 
 			<!-- Mode réception -->
 			<div>
@@ -595,7 +716,10 @@
 			<div>
 				<p class="text-xs text-gray-400 mb-0.5">Montant à payer</p>
 				<p class="font-syne font-bold text-3xl text-gray-800">{montantTotal.toLocaleString('fr-FR')} <span class="text-base font-normal text-gray-400">FCFA</span></p>
-				<p class="text-xs text-gray-400 mt-0.5">500 FCFA × {form.copies} copie{form.copies > 1 ? 's' : ''} · {TYPE_ICONS[form.type_acte] || ''} {TYPE_LABELS[form.type_acte] || ''}</p>
+				<p class="text-xs text-gray-400 mt-0.5">
+				{#if isPerCopy}500 FCFA × {form.copies} copie{form.copies > 1 ? 's' : ''} · {/if}
+				{TYPE_ICONS[form.type_acte] || ''} {TYPE_LABELS[form.type_acte] || ''}
+			</p>
 			</div>
 			<div class="text-4xl">🏦</div>
 		</div>
@@ -743,11 +867,13 @@
 					<button on:click={() => goToStep(2)} class="text-xs text-primary-600 hover:text-primary-800 font-medium flex items-center gap-1 hover:underline">✏️ Modifier</button>
 				</div>
 				<dl class="space-y-1.5 text-sm">
-					<div class="flex justify-between"><dt class="text-gray-500">Type d'acte</dt><dd class="font-medium">{TYPE_LABELS[form.type_acte] || '—'}</dd></div>
+					<div class="flex justify-between"><dt class="text-gray-500">Service</dt><dd class="font-medium">{TYPE_LABELS[form.type_acte] || '—'}</dd></div>
+					{#if isActeCivil}
 					<div class="flex justify-between"><dt class="text-gray-500">Concernant</dt><dd class="font-medium">{CONCERNANT_LABELS[form.concernant] || '—'}</dd></div>
 					<div class="flex justify-between"><dt class="text-gray-500">Date de l'acte</dt><dd class="font-medium">{form.date_evenement}</dd></div>
 					{#if form.numero_registre}<div class="flex justify-between"><dt class="text-gray-500">N° registre</dt><dd class="font-mono text-xs font-medium">{form.numero_registre}</dd></div>{/if}
-					<div class="flex justify-between"><dt class="text-gray-500">Copies</dt><dd class="font-medium">{form.copies}</dd></div>
+					{/if}
+					{#if isPerCopy}<div class="flex justify-between"><dt class="text-gray-500">Copies</dt><dd class="font-medium">{form.copies}</dd></div>{/if}
 					<div class="flex justify-between"><dt class="text-gray-500">Réception</dt><dd class="font-medium">{MODE_LABELS[form.mode_reception]}</dd></div>
 				</dl>
 			</div>

@@ -30,7 +30,7 @@
 			type: 'naissance',
 			icon: '👶',
 			label: 'Acte de naissance',
-			desc: 'Pour vous-même, un enfant ou un parent né dans la commune.',
+			desc: 'Copie intégrale pour vous-même, un enfant ou un parent né dans la commune.',
 			color: 'from-blue-50 to-sky-50',
 			border: 'border-blue-200',
 			iconBg: 'bg-blue-100'
@@ -39,7 +39,7 @@
 			type: 'mariage',
 			icon: '💍',
 			label: 'Acte de mariage',
-			desc: 'Extrait ou copie intégrale d\'un acte de mariage célébré en mairie.',
+			desc: 'Copie intégrale d\'un acte de mariage célébré en mairie.',
 			color: 'from-rose-50 to-pink-50',
 			border: 'border-rose-200',
 			iconBg: 'bg-rose-100'
@@ -53,6 +53,22 @@
 			border: 'border-slate-200',
 			iconBg: 'bg-slate-100'
 		}
+	];
+
+	const autresServices = [
+		{ icon: '🤝', label: 'Attestation de concubinage', tab: 'attestations', href: '/demande?type=attestation_concubinage', online: true },
+		{ icon: '🏠', label: 'Attestation de domicile', tab: 'attestations', href: '/demarches?type=attestations', online: false },
+		{ icon: '✅', label: 'Certification de documents', tab: 'certifications', href: '/demande?type=certification_documents', online: true },
+		{ icon: '🔏', label: 'Légalisation de signature', tab: 'certifications', href: '/demande?type=legalisation', online: true },
+		{ icon: '📖', label: 'Inscription au livret de famille', tab: 'livret', href: '/demarches?type=livret', online: false },
+		{ icon: '📋', label: 'Duplicata du livret de famille', tab: 'livret', href: '/demande?type=duplicata_livret', online: true },
+		{ icon: '💍', label: 'Dossier de mariage', tab: 'mariage', href: '/demarches?type=mariage', online: false },
+		{ icon: '🎖️', label: 'Recensement militaire', tab: 'attestations', href: '/demarches?type=attestations', online: false },
+		{ icon: '👨‍👩‍👧', label: 'Certificat de vie et entretien', tab: 'certificats', href: '/demande?type=certificat_vie_entretien', online: true },
+		{ icon: '👴', label: 'Certificat de vie adulte', tab: 'certificats', href: '/demarches?type=certificats', online: false },
+		{ icon: '👪', label: 'Fiche familiale d\'état civil', tab: 'certificats', href: '/demande?type=fiche_familiale', online: true },
+		{ icon: '🙋', label: 'Fiche individuelle d\'état civil', tab: 'certificats', href: '/demande?type=fiche_individuelle', online: true },
+		{ icon: '🔍', label: 'Copie d\'extrait égaré', tab: 'naissance', href: '/demarches?type=naissance', online: false }
 	];
 </script>
 
@@ -164,6 +180,32 @@
 				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
 			</svg>
 		</a>
+	</div>
+
+	<!-- Autres services -->
+	<div class="mt-12 pt-10 border-t border-gray-100">
+		<div class="flex items-center justify-between mb-6">
+			<div>
+				<h2 class="font-syne font-bold text-xl text-gray-800">Autres services disponibles</h2>
+				<p class="text-sm text-gray-500 mt-1">Démarches disponibles en mairie — certaines peuvent être initiées en ligne.</p>
+			</div>
+		</div>
+		<div class="grid sm:grid-cols-2 gap-2.5">
+			{#each autresServices as s}
+				<a
+					href={s.href}
+					class="flex items-center gap-3 p-3.5 rounded-xl border border-gray-100 bg-white hover:border-primary-200 hover:bg-primary-50/30 transition-all group"
+				>
+					<span class="text-xl flex-shrink-0">{s.icon}</span>
+					<span class="flex-1 text-sm font-medium text-gray-700 group-hover:text-primary-700">{s.label}</span>
+					{#if s.online}
+						<span class="text-xs bg-primary-100 text-primary-700 font-medium px-2 py-0.5 rounded-full whitespace-nowrap flex-shrink-0">En ligne</span>
+					{:else}
+						<span class="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full whitespace-nowrap flex-shrink-0">En mairie</span>
+					{/if}
+				</a>
+			{/each}
+		</div>
 	</div>
 </section>
 
