@@ -2,6 +2,19 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+	--color-p50:  #e6f5ee;
+	--color-p100: #c2e5d0;
+	--color-p200: #9dd4b2;
+	--color-p300: #6fbe8e;
+	--color-p400: #3dab72;
+	--color-p500: #009A44;
+	--color-p600: #00883c;
+	--color-p700: #007433;
+	--color-p800: #005f2a;
+	--color-p900: #004a21;
+}
+
 @layer base {
 	* {
 		box-sizing: border-box;

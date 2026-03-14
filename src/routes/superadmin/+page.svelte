@@ -22,20 +22,91 @@
 
 	// Formulaire verrouillage
 	const LOCKABLE_PARAMS = [
-		{ key: 'sla_heures',           label: 'SLA Agent (heures)',            role: 'agent' },
-		{ key: 'seuil_escalades_alerte',label: 'Seuil alertes escalades',       role: 'superviseur' },
-		{ key: 'periode_dashboard',    label: 'Période dashboard Maire',        role: 'maire' },
-		{ key: 'frais_copie',          label: 'Frais copie (FCFA)',             role: 'global' },
-		{ key: 'frais_copie_integrale',label: 'Frais copie intégrale (FCFA)',   role: 'global' },
-		{ key: 'sla_heures_defaut',    label: 'SLA par défaut (heures)',        role: 'global' }
+		{ key: 'sla_heures',                      label: 'SLA Agent (heures)',                  role: 'agent' },
+		{ key: 'seuil_escalades_alerte',           label: 'Seuil alertes escalades',             role: 'superviseur' },
+		{ key: 'periode_dashboard',                label: 'Période dashboard Maire',             role: 'maire' },
+		{ key: 'frais_copie',                      label: 'Frais copie (FCFA)',                  role: 'global' },
+		{ key: 'frais_copie_integrale',            label: 'Frais copie intégrale (FCFA)',        role: 'global' },
+		{ key: 'frais_urgence',                    label: 'Frais traitement urgent (FCFA)',      role: 'global' },
+		{ key: 'sla_heures_defaut',                label: 'SLA par défaut (heures)',             role: 'global' },
+		{ key: 'delai_declaration_naissance_jours',label: 'Délai déclaration naissance (jours)', role: 'global' },
+		{ key: 'delai_declaration_deces_jours',    label: 'Délai déclaration décès (jours)',     role: 'global' },
+		{ key: 'max_pieces_jointes',               label: 'Nb max pièces jointes',               role: 'global' },
+		{ key: 'whatsapp_actif',                   label: 'Livraison WhatsApp activée',          role: 'global' },
+		{ key: 'notif_agent_nouvelle_demande',     label: 'Notif agent : nouvelle demande',      role: 'agent' },
+		{ key: 'notif_agent_escalade_resolue',     label: 'Notif agent : escalade résolue',      role: 'agent' },
+		{ key: 'notif_superviseur_nouvelle_escalade', label: 'Notif superviseur : escalade',     role: 'superviseur' }
 	];
 
 	// Formulaire paramètres globaux éditables
 	let globalEdit = {};
 	let communeEdit = {};
 
+	// Identité / Branding
+	let identiteEdit = {};
+	let savingIdentite = false;
+	let logoUploading = false;
+	let logoToast = null;
+
+	function hexToRgb(hex) {
+		const h = hex.replace('#', '');
+		return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)];
+	}
+	function blend(hex, target, amount) {
+		const [r1,g1,b1] = hexToRgb(hex);
+		const r = Math.round(Math.max(0, Math.min(255, r1+(target[0]-r1)*amount)));
+		const g = Math.round(Math.max(0, Math.min(255, g1+(target[1]-g1)*amount)));
+		const b = Math.round(Math.max(0, Math.min(255, b1+(target[2]-b1)*amount)));
+		return '#'+[r,g,b].map(v=>v.toString(16).padStart(2,'0')).join('');
+	}
+	function applyTheme(hex) {
+		if (!hex) return;
+		const white=[255,255,255], black=[0,0,0], root=document.documentElement;
+		root.style.setProperty('--color-p50',  blend(hex,white,0.92));
+		root.style.setProperty('--color-p100', blend(hex,white,0.82));
+		root.style.setProperty('--color-p200', blend(hex,white,0.64));
+		root.style.setProperty('--color-p300', blend(hex,white,0.44));
+		root.style.setProperty('--color-p400', blend(hex,white,0.22));
+		root.style.setProperty('--color-p500', hex);
+		root.style.setProperty('--color-p600', blend(hex,black,0.10));
+		root.style.setProperty('--color-p700', blend(hex,black,0.22));
+		root.style.setProperty('--color-p800', blend(hex,black,0.38));
+		root.style.setProperty('--color-p900', blend(hex,black,0.52));
+	}
+
+	async function handleLogoUpload(e) {
+		const file = e.target.files?.[0];
+		if (!file) return;
+		logoUploading = true;
+		const reader = new FileReader();
+		reader.onload = (ev) => {
+			identiteEdit.logo = ev.target.result;
+			logoUploading = false;
+			e.target.value = '';
+		};
+		reader.readAsDataURL(file);
+	}
+
+	async function saveIdentite() {
+		savingIdentite = true;
+		if (identiteEdit.couleur_primaire) applyTheme(identiteEdit.couleur_primaire);
+		const res = await fetch('/api/commune', {
+			method: 'PUT',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(identiteEdit)
+		});
+		savingIdentite = false;
+		if (res.ok) {
+			commune = { ...commune, ...identiteEdit };
+			showToast('Identité de la mairie enregistrée');
+		} else {
+			showToast('Erreur lors de la sauvegarde', 'error');
+		}
+	}
+
 	const TABS = [
 		{ id: 'overview',  label: 'Vue d\'ensemble', icon: '📊' },
+		{ id: 'identite',  label: 'Identité',        icon: '🏛️' },
 		{ id: 'modules',   label: 'Modules',         icon: '🧩' },
 		{ id: 'users',     label: 'Utilisateurs',    icon: '👥' },
 		{ id: 'params',    label: 'Paramètres',      icon: '⚙️' },
@@ -147,6 +218,14 @@
 		if (communeRes.ok) {
 			commune = await communeRes.json();
 			communeEdit = { ...commune };
+			identiteEdit = {
+				nom: commune.nom,
+				nom_app: commune.nom_app || 'CiviCI',
+				slogan: commune.slogan || '',
+				couleur_primaire: commune.couleur_primaire || '#009A44',
+				horaires_ouverture: commune.horaires_ouverture || '',
+				logo: commune.logo || null
+			};
 		}
 		loading = false;
 	}
@@ -372,6 +451,117 @@
 				{/if}
 			</div>
 
+		<!-- ── TAB: IDENTITÉ ──────────────────────────────────── -->
+		{:else if activeTab === 'identite'}
+			<div class="space-y-6">
+				<div>
+					<h1 class="font-syne font-bold text-2xl text-gray-800">Identité de la mairie</h1>
+					<p class="text-sm text-gray-500 mt-1">Personnalisez le nom, le logo, la couleur principale et les informations de contact affichés sur l'ensemble de l'application.</p>
+				</div>
+
+				<div class="grid sm:grid-cols-2 gap-6">
+					<!-- Logo -->
+					<div class="bg-white rounded-2xl border border-gray-100 p-6 space-y-4">
+						<h2 class="font-syne font-semibold text-gray-700 flex items-center gap-2">🖼️ Logo</h2>
+						<div class="flex items-center gap-4">
+							<div class="w-16 h-16 rounded-xl border-2 border-gray-200 flex items-center justify-center overflow-hidden bg-gray-50 flex-shrink-0">
+								{#if identiteEdit.logo}
+									<img src={identiteEdit.logo} alt="Logo" class="w-full h-full object-contain" />
+								{:else}
+									<div class="w-full h-full flex items-center justify-center bg-primary-500 rounded-xl">
+										<span class="text-white font-syne font-bold text-2xl">{(identiteEdit.nom_app || 'C')[0]}</span>
+									</div>
+								{/if}
+							</div>
+							<div class="flex-1 space-y-2">
+								<label class="cursor-pointer">
+									<input type="file" accept="image/*" class="hidden" on:change={handleLogoUpload} disabled={logoUploading} />
+									<span class="inline-flex items-center gap-2 text-sm font-medium border-2 border-primary-300 text-primary-700 hover:border-primary-500 rounded-xl py-2 px-4 transition-colors cursor-pointer {logoUploading ? 'opacity-50' : ''}">
+										{#if logoUploading}
+											<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+										{:else}
+											<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+										{/if}
+										{identiteEdit.logo ? 'Remplacer' : 'Charger un logo'}
+									</span>
+								</label>
+								{#if identiteEdit.logo}
+									<button on:click={() => identiteEdit.logo = null} class="block text-xs text-red-500 hover:text-red-700">Supprimer le logo</button>
+								{/if}
+								<p class="text-xs text-gray-400">PNG, JPG ou SVG recommandé. Carré de préférence.</p>
+							</div>
+						</div>
+					</div>
+
+					<!-- Couleur principale -->
+					<div class="bg-white rounded-2xl border border-gray-100 p-6 space-y-4">
+						<h2 class="font-syne font-semibold text-gray-700 flex items-center gap-2">🎨 Couleur principale</h2>
+						<div class="flex items-center gap-4">
+							<input
+								type="color"
+								bind:value={identiteEdit.couleur_primaire}
+								on:input={(e) => applyTheme(e.target.value)}
+								class="w-14 h-14 rounded-xl border-2 border-gray-200 cursor-pointer p-1"
+							/>
+							<div class="flex-1">
+								<input type="text" bind:value={identiteEdit.couleur_primaire} class="input-field text-sm font-mono" placeholder="#009A44" maxlength="7" />
+								<p class="text-xs text-gray-400 mt-1">La couleur est appliquée en temps réel.</p>
+							</div>
+						</div>
+						<!-- Prévisualisation des teintes -->
+						<div class="flex gap-1">
+							{#each ['--color-p100','--color-p300','--color-p500','--color-p700','--color-p900'] as v}
+								<div class="flex-1 h-6 rounded" style="background-color: var({v})"></div>
+							{/each}
+						</div>
+					</div>
+				</div>
+
+				<!-- Infos générales -->
+				<div class="bg-white rounded-2xl border border-gray-100 p-6">
+					<h2 class="font-syne font-semibold text-gray-700 mb-5 flex items-center gap-2">🏛️ Informations générales</h2>
+					<div class="grid sm:grid-cols-2 gap-4">
+						<div>
+							<label class="label text-xs">Nom de l'application</label>
+							<input type="text" bind:value={identiteEdit.nom_app} class="input-field text-sm" placeholder="CiviCI" />
+						</div>
+						<div>
+							<label class="label text-xs">Nom de la mairie</label>
+							<input type="text" bind:value={identiteEdit.nom} class="input-field text-sm" placeholder="Mairie de Cocody" />
+						</div>
+						<div class="sm:col-span-2">
+							<label class="label text-xs">Slogan</label>
+							<input type="text" bind:value={identiteEdit.slogan} class="input-field text-sm" placeholder="Au service de nos concitoyens" />
+						</div>
+						<div class="sm:col-span-2">
+							<label class="label text-xs">Horaires d'ouverture</label>
+							<input type="text" bind:value={identiteEdit.horaires_ouverture} class="input-field text-sm" placeholder="Lun–Ven 7h30–16h00 · Sam 8h00–12h00" />
+						</div>
+					</div>
+					<button on:click={saveIdentite} disabled={savingIdentite} class="btn-primary text-sm mt-5">
+						{savingIdentite ? 'Enregistrement...' : 'Enregistrer l\'identité'}
+					</button>
+				</div>
+
+				<!-- Aperçu -->
+				<div class="bg-white rounded-2xl border border-gray-100 p-6">
+					<h2 class="font-syne font-semibold text-gray-700 mb-4">👁️ Aperçu du header</h2>
+					<div class="bg-white border border-gray-200 rounded-xl px-4 py-3 flex items-center gap-3 shadow-sm">
+						{#if identiteEdit.logo}
+							<img src={identiteEdit.logo} alt="Logo" class="w-8 h-8 rounded-lg object-contain" />
+						{:else}
+							<div class="w-8 h-8 bg-primary-500 rounded-lg flex items-center justify-center">
+								<span class="text-white font-syne font-bold text-sm">{(identiteEdit.nom_app || 'C')[0]}</span>
+							</div>
+						{/if}
+						<div>
+							<span class="font-syne font-bold text-primary-600">{identiteEdit.nom_app || 'CiviCI'}</span>
+							<p class="text-xs text-gray-500">{identiteEdit.nom || 'Mairie de Cocody'}</p>
+						</div>
+					</div>
+				</div>
+			</div>
+
 		<!-- ── TAB: MODULES ────────────────────────────────────── -->
 		{:else if activeTab === 'modules'}
 			<div class="space-y-6">
@@ -576,14 +766,74 @@
 								class="input-field text-sm {lockedParams.includes('sla_heures_defaut') ? 'bg-gray-50 opacity-60' : ''}"/>
 						</div>
 						<div>
-							<label class="label text-xs">Délai déclaration naissance (jours)</label>
-							<input type="number" bind:value={globalEdit.delai_declaration_naissance_jours} class="input-field text-sm"/>
+							<label class="label text-xs flex items-center gap-2">
+								Frais traitement urgent (FCFA)
+								{#if lockedParams.includes('frais_urgence')}<span class="text-xs text-red-500">🔒 verrouillé</span>{/if}
+							</label>
+							<input type="number" bind:value={globalEdit.frais_urgence}
+								disabled={lockedParams.includes('frais_urgence')}
+								class="input-field text-sm {lockedParams.includes('frais_urgence') ? 'bg-gray-50 opacity-60' : ''}"/>
 						</div>
 						<div>
-							<label class="label text-xs">Délai déclaration décès (jours)</label>
-							<input type="number" bind:value={globalEdit.delai_declaration_deces_jours} class="input-field text-sm"/>
+							<label class="label text-xs flex items-center gap-2">
+								Délai déclaration naissance (jours)
+								{#if lockedParams.includes('delai_declaration_naissance_jours')}<span class="text-xs text-red-500">🔒 verrouillé</span>{/if}
+							</label>
+							<input type="number" bind:value={globalEdit.delai_declaration_naissance_jours}
+								disabled={lockedParams.includes('delai_declaration_naissance_jours')}
+								class="input-field text-sm {lockedParams.includes('delai_declaration_naissance_jours') ? 'bg-gray-50 opacity-60' : ''}"/>
+						</div>
+						<div>
+							<label class="label text-xs flex items-center gap-2">
+								Délai déclaration décès (jours)
+								{#if lockedParams.includes('delai_declaration_deces_jours')}<span class="text-xs text-red-500">🔒 verrouillé</span>{/if}
+							</label>
+							<input type="number" bind:value={globalEdit.delai_declaration_deces_jours}
+								disabled={lockedParams.includes('delai_declaration_deces_jours')}
+								class="input-field text-sm {lockedParams.includes('delai_declaration_deces_jours') ? 'bg-gray-50 opacity-60' : ''}"/>
+						</div>
+						<div>
+							<label class="label text-xs flex items-center gap-2">
+								Nb max pièces jointes par demande
+								{#if lockedParams.includes('max_pieces_jointes')}<span class="text-xs text-red-500">🔒 verrouillé</span>{/if}
+							</label>
+							<input type="number" min="1" max="20" bind:value={globalEdit.max_pieces_jointes}
+								disabled={lockedParams.includes('max_pieces_jointes')}
+								class="input-field text-sm {lockedParams.includes('max_pieces_jointes') ? 'bg-gray-50 opacity-60' : ''}"/>
 						</div>
 					</div>
+
+					<!-- Toggles globaux -->
+					<div class="mt-5 space-y-3 pt-5 border-t border-gray-100">
+						<h3 class="text-sm font-semibold text-gray-600">Options</h3>
+						{#each [
+							{ key: 'whatsapp_actif', label: 'Livraison WhatsApp activée', desc: 'Les actes sont envoyés par WhatsApp au citoyen.' },
+							{ key: 'notif_agent_nouvelle_demande', label: 'Notif agents : nouvelle demande', desc: 'Les agents reçoivent une notification pour chaque nouvelle demande.' },
+							{ key: 'notif_agent_escalade_resolue', label: 'Notif agents : escalade résolue', desc: 'Les agents sont notifiés quand leur escalade est résolue.' },
+							{ key: 'notif_superviseur_nouvelle_escalade', label: 'Notif superviseur : nouvelle escalade', desc: 'Le superviseur est notifié à chaque escalade.' }
+						] as opt}
+							{@const isLocked = lockedParams.includes(opt.key)}
+							<div class="flex items-center justify-between gap-4 py-2">
+								<div class="flex-1">
+									<p class="text-sm font-medium text-gray-800 flex items-center gap-1">
+										{opt.label}
+										{#if isLocked}<span class="text-xs text-red-500">🔒</span>{/if}
+									</p>
+									<p class="text-xs text-gray-400">{opt.desc}</p>
+								</div>
+								<button
+									on:click={() => !isLocked && (globalEdit[opt.key] = !globalEdit[opt.key])}
+									class="relative w-11 h-6 rounded-full transition-all duration-300 flex-shrink-0
+										{globalEdit[opt.key] ? 'bg-primary-500' : 'bg-gray-300'}
+										{isLocked ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}"
+								>
+									<span class="absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all duration-300
+										{globalEdit[opt.key] ? 'left-5' : 'left-0.5'}"></span>
+								</button>
+							</div>
+						{/each}
+					</div>
+
 					<button on:click={saveGlobalParams} disabled={saving} class="btn-primary text-sm mt-5">
 						{saving ? 'Enregistrement...' : 'Enregistrer les paramètres globaux'}
 					</button>

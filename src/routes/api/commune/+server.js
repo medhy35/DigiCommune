@@ -1,10 +1,18 @@
 import { json } from '@sveltejs/kit';
-import { readFileSync } from 'fs';
+import { readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 
-const DATA_DIR = join(process.cwd(), 'data');
+const COMMUNE_FILE = join(process.cwd(), 'data', 'commune.json');
 
 export function GET() {
-	const commune = JSON.parse(readFileSync(join(DATA_DIR, 'commune.json'), 'utf-8'));
+	const commune = JSON.parse(readFileSync(COMMUNE_FILE, 'utf-8'));
 	return json(commune);
+}
+
+export async function PUT({ request }) {
+	const data = await request.json();
+	const commune = JSON.parse(readFileSync(COMMUNE_FILE, 'utf-8'));
+	const updated = { ...commune, ...data };
+	writeFileSync(COMMUNE_FILE, JSON.stringify(updated, null, 2), 'utf-8');
+	return json({ ok: true, commune: updated });
 }

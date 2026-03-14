@@ -1,16 +1,12 @@
 <script>
-	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
+	import { commune as communeStore } from '$lib/stores/commune.js';
 
-	let commune = null;
 	let searchNumero = '';
 	let searching = false;
 	let searchError = '';
 
-	onMount(async () => {
-		const res = await fetch('/api/commune');
-		commune = await res.json();
-	});
+	$: commune = $communeStore;
 
 	async function handleSearch() {
 		if (!searchNumero.trim()) return;
@@ -88,11 +84,15 @@
 <header class="bg-white border-b border-gray-100 sticky top-0 z-50 shadow-sm">
 	<div class="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
 		<div class="flex items-center gap-3">
-			<div class="w-10 h-10 bg-primary-500 rounded-xl flex items-center justify-center shadow-sm">
-				<span class="text-white font-syne font-bold text-lg leading-none">C</span>
-			</div>
+			{#if commune?.logo}
+				<img src={commune.logo} alt={commune.nom_app || 'Logo'} class="w-10 h-10 rounded-xl object-contain shadow-sm" />
+			{:else}
+				<div class="w-10 h-10 bg-primary-500 rounded-xl flex items-center justify-center shadow-sm">
+					<span class="text-white font-syne font-bold text-lg leading-none">{(commune?.nom_app || 'C')[0]}</span>
+				</div>
+			{/if}
 			<div>
-				<span class="font-syne font-bold text-xl text-primary-600">CiviCI</span>
+				<span class="font-syne font-bold text-xl text-primary-600">{commune?.nom_app || 'CiviCI'}</span>
 				{#if commune}
 					<p class="text-xs text-gray-500 leading-tight">{commune.nom}</p>
 				{/if}
@@ -279,10 +279,14 @@
 		<div class="flex flex-col sm:flex-row justify-between gap-8">
 			<div>
 				<div class="flex items-center gap-2 mb-3">
-					<div class="w-8 h-8 bg-primary-500 rounded-lg flex items-center justify-center">
-						<span class="text-white font-syne font-bold text-sm">C</span>
-					</div>
-					<span class="font-syne font-bold text-white text-lg">CiviCI</span>
+					{#if commune?.logo}
+						<img src={commune.logo} alt={commune.nom_app || 'Logo'} class="w-8 h-8 rounded-lg object-contain" />
+					{:else}
+						<div class="w-8 h-8 bg-primary-500 rounded-lg flex items-center justify-center">
+							<span class="text-white font-syne font-bold text-sm">{(commune?.nom_app || 'C')[0]}</span>
+						</div>
+					{/if}
+					<span class="font-syne font-bold text-white text-lg">{commune?.nom_app || 'CiviCI'}</span>
 				</div>
 				{#if commune}
 					<p class="text-sm">{commune.nom}</p>
@@ -303,6 +307,7 @@
 				<ul class="space-y-1.5 text-sm">
 					<li>Service disponible 24h/24</li>
 					<li>Réponse sous 24 heures</li>
+					{#if commune?.horaires_ouverture}<li>{commune.horaires_ouverture}</li>{/if}
 					<li>Gratuit pour le citoyen</li>
 				</ul>
 			</div>

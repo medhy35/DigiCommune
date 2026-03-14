@@ -38,8 +38,14 @@
     "locked_params": [],
     "frais_copie": 500,
     "frais_copie_integrale": 2500,
+    "frais_urgence": 1500,
     "sla_heures_defaut": 48,
     "delai_declaration_naissance_jours": 90,
-    "delai_declaration_deces_jours": 15
+    "delai_declaration_deces_jours": 15,
+    "max_pieces_jointes": 5,
+    "whatsapp_actif": true,
+    "notif_agent_nouvelle_demande": true,
+    "notif_agent_escalade_resolue": true,
+    "notif_superviseur_nouvelle_escalade": true
   }
 }
