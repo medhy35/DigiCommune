@@ -1,12 +1,22 @@
 <script>
+	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { commune as communeStore } from '$lib/stores/commune.js';
 
 	let searchNumero = '';
 	let searching = false;
 	let searchError = '';
+	let modules = {};
 
 	$: commune = $communeStore;
+
+	onMount(async () => {
+		const res = await fetch('/api/settings?role=global');
+		if (res.ok) {
+			const data = await res.json();
+			modules = data.settings?.modules || {};
+		}
+	});
 
 	async function handleSearch() {
 		if (!searchNumero.trim()) return;
@@ -74,6 +84,9 @@
 			goto('/demarches', { state: { tab: s.demandeTab } });
 		}
 	}
+
+	$: filteredServices = services.filter(s => modules[s.type] !== false);
+	$: filteredAutresServices = autresServices.filter(s => !s.serviceType || modules[s.serviceType] !== false);
 </script>
 
 <svelte:head>
@@ -152,7 +165,7 @@
 	</div>
 
 	<div class="grid sm:grid-cols-3 gap-6">
-		{#each services as service}
+		{#each filteredServices as service}
 			<div class="bg-gradient-to-br {service.color} border {service.border} rounded-2xl p-6 flex flex-col hover:shadow-card-hover transition-all duration-300 hover:-translate-y-1">
 				<div class="w-14 h-14 {service.iconBg} rounded-2xl flex items-center justify-center text-2xl mb-4">
 					{service.icon}
@@ -201,7 +214,7 @@
 			</div>
 		</div>
 		<div class="grid sm:grid-cols-2 gap-2.5">
-			{#each autresServices as s}
+			{#each filteredAutresServices as s}
 				<button
 					on:click={() => goToService(s)}
 					class="flex items-center gap-3 p-3.5 rounded-xl border border-gray-100 bg-white hover:border-primary-200 hover:bg-primary-50/30 transition-all group text-left w-full"

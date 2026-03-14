@@ -1,7 +1,10 @@
 import { json } from '@sveltejs/kit';
 import { readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
-import { createNotification } from '$lib/server/notifications.js';const DATA_FILE = join(process.cwd(), 'data', 'demandes.json');
+import { createNotification } from '$lib/server/notifications.js';
+
+const DATA_FILE = join(process.cwd(), 'data', 'demandes.json');
+const SETTINGS_FILE = join(process.cwd(), 'data', 'settings.json');
 
 function readDemandes() {
 	return JSON.parse(readFileSync(DATA_FILE, 'utf-8'));
@@ -30,6 +33,14 @@ export function GET({ url }) {
 
 export async function POST({ request }) {
 	const body = await request.json();
+
+	// Vérifier que le module est actif
+	const settings = JSON.parse(readFileSync(SETTINGS_FILE, 'utf-8'));
+	const modules = settings.global?.modules || {};
+	if (modules[body.type_acte] === false) {
+		return json({ error: 'Ce service est temporairement indisponible.' }, { status: 403 });
+	}
+
 	const demandes = readDemandes();
 
 	// Génère un ID sur 10 chiffres : base timestamp secondes (6 chiffres, change ~toutes les 2h45)

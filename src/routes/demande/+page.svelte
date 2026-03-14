@@ -6,6 +6,7 @@
 	import { toast } from '$lib/stores/toast.js';
 
 	let currentStep = 1;
+	let modules = {};
 
 	// OTP
 	let otpSent = false;
@@ -39,11 +40,20 @@
 	let errors = {};
 
 	onMount(async () => {
+		const [communeRes, settingsRes] = await Promise.all([
+			fetch('/api/commune'),
+			fetch('/api/settings?role=global')
+		]);
+		commune = await communeRes.json();
+		if (settingsRes.ok) {
+			const data = await settingsRes.json();
+			modules = data.settings?.modules || {};
+		}
 		// Type passé via navigation state (invisible dans l'URL)
 		const typeFromState = $page.state?.serviceType;
-		if (typeFromState && TYPE_LABELS[typeFromState]) form.type_acte = typeFromState;
-		const res = await fetch('/api/commune');
-		commune = await res.json();
+		if (typeFromState && TYPE_LABELS[typeFromState] && modules[typeFromState] !== false) {
+			form.type_acte = typeFromState;
+		}
 	});
 
 	function sendOtp() {
@@ -235,8 +245,8 @@
 		? form.copies * 500
 		: (FRAIS_FIXES[form.type_acte] || 0);
 
-	// Groupes de services pour le sélecteur
-	const SERVICE_GROUPS = [
+	// Groupes de services pour le sélecteur (filtrés selon les modules actifs)
+	const ALL_SERVICE_GROUPS = [
 		{
 			label: 'Actes civils', icon: '📄',
 			services: [
@@ -268,6 +278,10 @@
 			]
 		}
 	];
+
+	$: SERVICE_GROUPS = ALL_SERVICE_GROUPS
+		.map(g => ({ ...g, services: g.services.filter(([type]) => modules[type] !== false) }))
+		.filter(g => g.services.length > 0);
 
 	const DOCS_REQUIS = {
 		naissance: [
