@@ -97,6 +97,11 @@ export async function PATCH({ params, request }) {
 		);
 	}
 
+	// Données de l'acte officiel validé par l'agent
+	if (body.acte) {
+		demande.acte = { ...(demande.acte || {}), ...body.acte };
+	}
+
 	// Note interne sans changement de statut
 	if (body.note_interne) {
 		demande.historique.push({

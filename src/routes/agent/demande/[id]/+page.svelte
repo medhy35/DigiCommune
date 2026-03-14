@@ -15,6 +15,73 @@
 	let generatingPdf = false;
 	let sendingWhatsapp = false;
 
+	// Modal de validation acte officiel
+	let showValidationModal = false;
+	let savingActe = false;
+	let acteFormErrors = {};
+	let acteForm = {
+		// Personne concernée (vérification)
+		prenom: '', nom: '', date_evenement: '', lieu_evenement: '',
+		// Données officielles de l'acte
+		numero_acte: '', numero_registre: '', folio: '',
+		date_acte: new Date().toISOString().split('T')[0],
+		// Signataire
+		officier_nom: '', officier_qualite: 'Officier d\'état civil',
+		// Mentions
+		mentions_marginales: '', observations: ''
+	};
+
+	const ACTES_CIVILS = ['naissance', 'mariage', 'deces'];
+	$: isActeCivil = ACTES_CIVILS.includes(demande?.type_acte);
+
+	function openValidationModal() {
+		acteFormErrors = {};
+		acteForm = {
+			prenom:            demande.personne_concernee?.prenom || '',
+			nom:               demande.personne_concernee?.nom || '',
+			date_evenement:    demande.personne_concernee?.date_evenement || demande.acte?.date_evenement || '',
+			lieu_evenement:    demande.personne_concernee?.lieu_evenement || demande.acte?.lieu_evenement || '',
+			numero_acte:       demande.acte?.numero_acte || '',
+			numero_registre:   demande.personne_concernee?.numero_registre || demande.acte?.numero_registre || '',
+			folio:             demande.acte?.folio || '',
+			date_acte:         demande.acte?.date_acte || new Date().toISOString().split('T')[0],
+			officier_nom:      demande.acte?.officier_nom || '',
+			officier_qualite:  demande.acte?.officier_qualite || 'Officier d\'état civil',
+			mentions_marginales: demande.acte?.mentions_marginales || '',
+			observations:      demande.acte?.observations || ''
+		};
+		showValidationModal = true;
+	}
+
+	async function validerEtTraiter() {
+		acteFormErrors = {};
+		if (!acteForm.numero_acte.trim())  acteFormErrors.numero_acte  = 'Champ obligatoire';
+		if (!acteForm.officier_nom.trim()) acteFormErrors.officier_nom = 'Champ obligatoire';
+		if (!acteForm.prenom.trim())       acteFormErrors.prenom       = 'Champ obligatoire';
+		if (!acteForm.nom.trim())          acteFormErrors.nom          = 'Champ obligatoire';
+		if (Object.keys(acteFormErrors).length > 0) return;
+
+		savingActe = true;
+		const res = await fetch(`/api/demandes/${id}`, {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				statut: 'traitee',
+				acte: { ...acteForm, valide_le: new Date().toISOString(), valide_par: 'agent_001' },
+				par: 'agent_001',
+				note: `Acte enregistré — N°${acteForm.numero_acte} — Signé par ${acteForm.officier_nom}`
+			})
+		});
+		if (res.ok) {
+			demande = await res.json();
+			showValidationModal = false;
+			toast('Dossier traité — acte officiel enregistré ✓');
+		} else {
+			toast('Erreur lors de la validation', 'error');
+		}
+		savingActe = false;
+	}
+
 	// Escalade modal
 	let showEscaladeModal = false;
 	let escaladeMotif = '';
@@ -240,21 +307,50 @@
 			{#if !isEscaladee(demande) && demande.statut !== 'disponible' && demande.statut !== 'rejetee'}
 				<div class="card">
 					<h3 class="font-syne font-semibold text-gray-700 mb-3">Mettre à jour le statut</h3>
-					<button
-						on:click={() => updateStatut(NEXT_STATUT[demande.statut], '')}
-						class="btn-primary w-full justify-center"
-						disabled={saving}
-					>
-						{#if saving}
-							<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-								<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-								<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
-							</svg>
-						{:else}
-							✅
+
+					{#if demande.statut === 'en_cours'}
+						<!-- Formulaire de validation obligatoire avant traitée -->
+						<button
+							on:click={openValidationModal}
+							class="btn-primary w-full justify-center"
+							disabled={saving}
+						>
+							✅ Marquer comme traitée
+						</button>
+						{#if !demande.acte}
+							<p class="text-xs text-amber-600 mt-2 flex items-center gap-1">
+								<svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+								Un formulaire de validation s'ouvrira avant de finaliser.
+							</p>
 						{/if}
-						{NEXT_LABEL[demande.statut]}
-					</button>
+					{:else}
+						<button
+							on:click={() => updateStatut(NEXT_STATUT[demande.statut], '')}
+							class="btn-primary w-full justify-center"
+							disabled={saving}
+						>
+							{#if saving}
+								<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+									<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+									<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+								</svg>
+							{:else}
+								✅
+							{/if}
+							{NEXT_LABEL[demande.statut]}
+						</button>
+					{/if}
+
+					<!-- Modifier l'acte si déjà enregistré -->
+					{#if demande.acte && ['traitee', 'disponible'].includes(demande.statut)}
+						<button
+							on:click={openValidationModal}
+							class="mt-2 w-full text-xs text-gray-500 hover:text-gray-700 border border-gray-200 hover:border-gray-400 rounded-lg py-1.5 px-3 transition-colors flex items-center justify-center gap-1"
+						>
+							<svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+							Modifier les données de l'acte
+						</button>
+					{/if}
 				</div>
 			{/if}
 
@@ -559,5 +655,151 @@
 			</div>
 		</div>
 	</div>
+{/if}
+
+<!-- MODAL VALIDATION ACTE OFFICIEL -->
+{#if showValidationModal}
+<div class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-start justify-center p-4 overflow-y-auto" on:click|self={() => showValidationModal = false}>
+	<div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl my-6">
+
+		<!-- Header -->
+		<div class="flex items-start justify-between px-6 pt-6 pb-4 border-b border-gray-100">
+			<div>
+				<h3 class="font-syne font-bold text-lg text-gray-800">Validation de l'acte officiel</h3>
+				<p class="text-sm text-gray-500 mt-0.5">Vérifiez et complétez les informations avant de finaliser le dossier <span class="font-mono font-semibold">{demande.id}</span></p>
+			</div>
+			<button on:click={() => showValidationModal = false} class="text-gray-400 hover:text-gray-600 p-1 hover:bg-gray-100 rounded-lg">
+				<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+			</button>
+		</div>
+
+		<div class="px-6 py-5 space-y-6">
+
+			<!-- Section 1: Identité de la personne concernée -->
+			<div>
+				<h4 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+					<span class="w-5 h-5 bg-blue-100 text-blue-600 rounded text-xs flex items-center justify-center font-bold">1</span>
+					Identité de la personne concernée — vérification
+				</h4>
+				<div class="grid grid-cols-2 gap-3">
+					<div>
+						<label class="text-xs font-medium text-gray-600 mb-1 block">Prénom <span class="text-red-500">*</span></label>
+						<input bind:value={acteForm.prenom} class="input-field text-sm {acteFormErrors.prenom ? 'border-red-400' : ''}" placeholder="Prénom"/>
+						{#if acteFormErrors.prenom}<p class="text-xs text-red-500 mt-0.5">{acteFormErrors.prenom}</p>{/if}
+					</div>
+					<div>
+						<label class="text-xs font-medium text-gray-600 mb-1 block">Nom <span class="text-red-500">*</span></label>
+						<input bind:value={acteForm.nom} class="input-field text-sm {acteFormErrors.nom ? 'border-red-400' : ''}" placeholder="Nom de famille"/>
+						{#if acteFormErrors.nom}<p class="text-xs text-red-500 mt-0.5">{acteFormErrors.nom}</p>{/if}
+					</div>
+					{#if isActeCivil}
+					<div>
+						<label class="text-xs font-medium text-gray-600 mb-1 block">Date de l'événement</label>
+						<input type="date" bind:value={acteForm.date_evenement} class="input-field text-sm"/>
+					</div>
+					<div>
+						<label class="text-xs font-medium text-gray-600 mb-1 block">Lieu de l'événement</label>
+						<input bind:value={acteForm.lieu_evenement} class="input-field text-sm" placeholder="ex: Cocody, Abidjan"/>
+					</div>
+					{/if}
+				</div>
+			</div>
+
+			<!-- Section 2: Données officielles de l'acte -->
+			<div>
+				<h4 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+					<span class="w-5 h-5 bg-primary-100 text-primary-600 rounded text-xs flex items-center justify-center font-bold">2</span>
+					Informations officielles de l'acte
+				</h4>
+				<div class="grid grid-cols-2 gap-3">
+					<div>
+						<label class="text-xs font-medium text-gray-600 mb-1 block">N° de l'acte <span class="text-red-500">*</span></label>
+						<input bind:value={acteForm.numero_acte} class="input-field text-sm font-mono {acteFormErrors.numero_acte ? 'border-red-400' : ''}" placeholder="ex: 245/2024"/>
+						{#if acteFormErrors.numero_acte}<p class="text-xs text-red-500 mt-0.5">{acteFormErrors.numero_acte}</p>{/if}
+					</div>
+					<div>
+						<label class="text-xs font-medium text-gray-600 mb-1 block">Date officielle de l'acte</label>
+						<input type="date" bind:value={acteForm.date_acte} class="input-field text-sm"/>
+					</div>
+					{#if isActeCivil}
+					<div>
+						<label class="text-xs font-medium text-gray-600 mb-1 block">N° de registre</label>
+						<input bind:value={acteForm.numero_registre} class="input-field text-sm font-mono" placeholder="ex: R-2024-001"/>
+					</div>
+					<div>
+						<label class="text-xs font-medium text-gray-600 mb-1 block">Folio / Page</label>
+						<input bind:value={acteForm.folio} class="input-field text-sm font-mono" placeholder="ex: 15 recto"/>
+					</div>
+					{/if}
+				</div>
+			</div>
+
+			<!-- Section 3: Signataire -->
+			<div>
+				<h4 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+					<span class="w-5 h-5 bg-purple-100 text-purple-600 rounded text-xs flex items-center justify-center font-bold">3</span>
+					Officier signataire
+				</h4>
+				<div class="grid grid-cols-2 gap-3">
+					<div>
+						<label class="text-xs font-medium text-gray-600 mb-1 block">Nom de l'officier <span class="text-red-500">*</span></label>
+						<input bind:value={acteForm.officier_nom} class="input-field text-sm {acteFormErrors.officier_nom ? 'border-red-400' : ''}" placeholder="Nom complet"/>
+						{#if acteFormErrors.officier_nom}<p class="text-xs text-red-500 mt-0.5">{acteFormErrors.officier_nom}</p>{/if}
+					</div>
+					<div>
+						<label class="text-xs font-medium text-gray-600 mb-1 block">Qualité</label>
+						<select bind:value={acteForm.officier_qualite} class="input-field text-sm">
+							<option>Officier d'état civil</option>
+							<option>Adjoint au Maire</option>
+							<option>Maire</option>
+							<option>Secrétaire général</option>
+						</select>
+					</div>
+				</div>
+			</div>
+
+			<!-- Section 4: Mentions (actes civils uniquement) -->
+			{#if isActeCivil}
+			<div>
+				<h4 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+					<span class="w-5 h-5 bg-gray-100 text-gray-600 rounded text-xs flex items-center justify-center font-bold">4</span>
+					Mentions marginales & observations <span class="text-gray-400 font-normal normal-case">(optionnel)</span>
+				</h4>
+				<div class="space-y-3">
+					<div>
+						<label class="text-xs font-medium text-gray-600 mb-1 block">Mentions marginales</label>
+						<textarea bind:value={acteForm.mentions_marginales} rows="2" class="input-field text-sm resize-none" placeholder="Ex: Légitimation par mariage du... — Reconnaissance le..."></textarea>
+					</div>
+					<div>
+						<label class="text-xs font-medium text-gray-600 mb-1 block">Observations internes</label>
+						<textarea bind:value={acteForm.observations} rows="2" class="input-field text-sm resize-none" placeholder="Notes à usage interne uniquement (non imprimées sur l'acte)"></textarea>
+					</div>
+				</div>
+			</div>
+			{/if}
+
+		</div>
+
+		<!-- Footer -->
+		<div class="px-6 pb-6 flex items-center justify-between border-t border-gray-100 pt-4">
+			<p class="text-xs text-gray-400">Les champs <span class="text-red-500">*</span> sont obligatoires</p>
+			<div class="flex gap-3">
+				<button on:click={() => showValidationModal = false} class="btn-ghost">Annuler</button>
+				<button
+					on:click={validerEtTraiter}
+					disabled={savingActe}
+					class="bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white font-semibold px-6 py-2.5 rounded-xl transition-all flex items-center gap-2"
+				>
+					{#if savingActe}
+						<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+					{:else}
+						<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+					{/if}
+					Valider et marquer traité
+				</button>
+			</div>
+		</div>
+	</div>
+</div>
 {/if}
 {/if}

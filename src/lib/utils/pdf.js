@@ -68,7 +68,33 @@ export async function generateActePDF(demande, commune) {
 	const pdfMake = await getPdfMake();
 	const typeLabel = TYPE_ACTE_LABELS[demande.type_acte] || demande.type_acte;
 	const personne = demande.personne_concernee;
+	// Use validated acte data if available, otherwise fall back to demande defaults
+	const acte = demande.acte || {};
 	const now = new Date();
+
+	// Résoudre les valeurs officielles (acte validé > données de demande > fallback)
+	const nomOfficiel    = acte.nom    || personne?.nom    || '';
+	const prenomOfficiel = acte.prenom || personne?.prenom || '';
+	const dateEvt        = acte.date_evenement || personne?.date_evenement || personne?.date_naissance || '';
+	const lieuEvt        = acte.lieu_evenement || personne?.lieu_evenement || '';
+	const numActe        = acte.numero_acte    || demande.id;
+	const numRegistre    = acte.numero_registre || personne?.numero_registre || '';
+	const folio          = acte.folio          || '';
+	const dateActe       = acte.date_acte      ? new Date(acte.date_acte).toLocaleDateString('fr-FR') : now.toLocaleDateString('fr-FR');
+	const officierNom    = acte.officier_nom   || commune?.maire || '';
+	const officierQualite= acte.officier_qualite || 'Officier d\'état civil';
+	const mentions       = acte.mentions_marginales || '';
+
+	const tableRows = [
+		[{ text: 'NOM ET PRÉNOM(S)', style: 'tableHeader' }, { text: `${nomOfficiel} ${prenomOfficiel}`, style: 'tableValue' }],
+		...(dateEvt ? [[{ text: "DATE DE L'ÉVÉNEMENT", style: 'tableHeader' }, { text: formatDate(dateEvt), style: 'tableValue' }]] : []),
+		...(lieuEvt ? [[{ text: "LIEU DE L'ÉVÉNEMENT", style: 'tableHeader' }, { text: lieuEvt, style: 'tableValue' }]] : []),
+		...(numRegistre ? [[{ text: 'N° DE REGISTRE', style: 'tableHeader' }, { text: numRegistre, style: 'tableValue' }]] : []),
+		...(folio ? [[{ text: 'FOLIO / PAGE', style: 'tableHeader' }, { text: folio, style: 'tableValue' }]] : []),
+		[{ text: "N° DE L'ACTE", style: 'tableHeader' }, { text: numActe, style: 'tableValue' }],
+		[{ text: 'NOMBRE DE COPIES', style: 'tableHeader' }, { text: `${demande.copies} copie(s)`, style: 'tableValue' }],
+		[{ text: 'DATE DE DÉLIVRANCE', style: 'tableHeader' }, { text: dateActe, style: 'tableValue' }]
+	];
 
 	const docDefinition = {
 		pageSize: 'A4',
@@ -76,32 +102,33 @@ export async function generateActePDF(demande, commune) {
 		content: [
 			...headerBlock(commune),
 			{ text: typeLabel.toUpperCase(), style: 'titre_acte', alignment: 'center' },
-			{ text: `N° de dossier : ${demande.id}`, style: 'numero_dossier', alignment: 'center' },
+			{
+				columns: [
+					{ text: `N° de l'acte : ${numActe}`, style: 'numero_dossier', alignment: 'left' },
+					{ text: `Dossier : ${demande.id}`, style: 'numero_dossier', alignment: 'right' }
+				]
+			},
 			{ text: '\n' },
 			{
 				text: [
 					'Nous, ',
-					{ text: commune.maire, bold: true },
-					`, Maire de la ${commune.nom}, officier d'état civil,\ncertifions qu'il a été procédé à l'établissement du présent ${typeLabel.toLowerCase()}.`
+					{ text: officierNom, bold: true },
+					`, ${officierQualite} de la ${commune.nom},\ncertifions qu'il a été procédé à l'établissement du présent ${typeLabel.toLowerCase()}.`
 				],
 				style: 'corps'
 			},
 			{ text: '\n' },
 			{
 				style: 'tableStyle',
-				table: {
-					widths: [180, '*'],
-					body: [
-						[{ text: 'NOM ET PRÉNOM(S)', style: 'tableHeader' }, { text: `${personne.nom} ${personne.prenom}`, style: 'tableValue' }],
-						[{ text: 'DATE DE NAISSANCE', style: 'tableHeader' }, { text: formatDate(personne.date_naissance), style: 'tableValue' }],
-						...(personne.numero_registre ? [[{ text: 'N° DE REGISTRE', style: 'tableHeader' }, { text: personne.numero_registre, style: 'tableValue' }]] : []),
-						[{ text: 'NOMBRE DE COPIES', style: 'tableHeader' }, { text: `${demande.copies} copie(s)`, style: 'tableValue' }],
-						[{ text: 'DATE DE DÉLIVRANCE', style: 'tableHeader' }, { text: now.toLocaleDateString('fr-FR'), style: 'tableValue' }]
-					]
-				},
+				table: { widths: [180, '*'], body: tableRows },
 				layout: { fillColor: (i) => i % 2 === 0 ? '#f8fafc' : null, hLineColor: () => '#e2e8f0', vLineColor: () => '#e2e8f0' }
 			},
-			{ text: '\n\n' },
+			{ text: '\n' },
+			...(mentions ? [{
+				text: [{ text: 'Mentions marginales : ', bold: true, fontSize: 9, color: '#555' }, { text: mentions, fontSize: 9, color: '#555', italics: true }],
+				margin: [0, 0, 0, 8]
+			}] : []),
+			{ text: '\n' },
 			{
 				text: `Le présent acte a été délivré conformément aux dispositions du Code de l'état civil ivoirien. Il ne peut être utilisé qu'aux fins légales expressément autorisées. Toute falsification ou usage frauduleux sera poursuivi conformément à la loi.`,
 				style: 'mention_legale', alignment: 'center'
@@ -120,13 +147,10 @@ export async function generateActePDF(demande, commune) {
 					{ width: 50, text: '' },
 					{
 						stack: [
-							{ text: `Le Maire de ${commune.nom}`, style: 'signature_label', alignment: 'center' },
-							{
-								image: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
-								width: 80, height: 40, alignment: 'center', opacity: 0.1
-							},
+							{ text: `${officierQualite} — ${commune.nom}`, style: 'signature_label', alignment: 'center' },
+							{ text: '\n\n\n' },
 							{ canvas: [{ type: 'line', x1: 20, y1: 0, x2: 160, y2: 0, lineWidth: 1 }] },
-							{ text: commune.maire, style: 'signature_name', alignment: 'center' }
+							{ text: officierNom, style: 'signature_name', alignment: 'center' }
 						]
 					}
 				]
@@ -136,7 +160,7 @@ export async function generateActePDF(demande, commune) {
 		styles: {
 			...BASE_STYLES,
 			titre_acte: { fontSize: 18, bold: true, color: '#009A44', margin: [0, 0, 0, 4] },
-			numero_dossier: { fontSize: 10, color: '#666', margin: [0, 0, 0, 8] },
+			numero_dossier: { fontSize: 9, color: '#888', margin: [0, 0, 0, 8] },
 			corps: { fontSize: 11, lineHeight: 1.5, color: '#333' }
 		},
 		defaultStyle: { font: 'Roboto' }

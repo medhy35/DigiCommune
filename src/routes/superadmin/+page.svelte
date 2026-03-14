@@ -40,8 +40,55 @@
 		{ id: 'users',     label: 'Utilisateurs',    icon: '👥' },
 		{ id: 'params',    label: 'Paramètres',      icon: '⚙️' },
 		{ id: 'locks',     label: 'Verrouillages',   icon: '🔒' },
+		{ id: 'modeles',   label: 'Modèles docs',    icon: '📄' },
 		{ id: 'journal',   label: 'Journal d\'audit',icon: '📜' }
 	];
+
+	// ── Templates / Modèles de documents ─────────────────────
+	let templates = [];
+	let templatesLoading = false;
+	let uploadingType = null;
+	let templateToasts = {};
+
+	async function loadTemplates() {
+		templatesLoading = true;
+		const res = await fetch('/api/templates');
+		if (res.ok) templates = await res.json();
+		templatesLoading = false;
+	}
+
+	async function handleTemplateUpload(type_acte, e) {
+		const file = e.target.files?.[0];
+		if (!file) return;
+		uploadingType = type_acte;
+		const reader = new FileReader();
+		reader.onload = async (ev) => {
+			const res = await fetch('/api/templates', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					type_acte,
+					nom_fichier: file.name,
+					taille: file.size,
+					data: ev.target.result,
+					uploaded_by: 'superadmin'
+				})
+			});
+			if (res.ok) {
+				templateToasts = { ...templateToasts, [type_acte]: 'ok' };
+				await loadTemplates();
+				setTimeout(() => { templateToasts = { ...templateToasts, [type_acte]: null }; }, 3000);
+			}
+			uploadingType = null;
+			e.target.value = '';
+		};
+		reader.readAsDataURL(file);
+	}
+
+	async function deleteTemplate(type_acte) {
+		await fetch(\`/api/templates?type=\${type_acte}\`, { method: 'DELETE' });
+		await loadTemplates();
+	}
 
 	// ── Journal d'audit ───────────────────────────────────────
 	let auditLog = [];
@@ -259,7 +306,7 @@
 		<div class="flex gap-2 mb-8 overflow-x-auto pb-1">
 			{#each TABS as tab}
 				<button
-					on:click={() => { activeTab = tab.id; if (tab.id === 'journal' && !auditLog.length) loadAudit(); }}
+					on:click={() => { activeTab = tab.id; if (tab.id === 'journal' && !auditLog.length) loadAudit(); if (tab.id === 'modeles' && !templates.length) loadTemplates(); }}
 					class="flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm whitespace-nowrap transition-all
 						{activeTab === tab.id ? 'bg-gray-900 text-white shadow-md' : 'bg-white text-gray-600 border border-gray-200 hover:border-gray-400'}"
 				>
@@ -640,6 +687,88 @@
 				</div>
 			</div>
 		{/if}
+
+		<!-- ── MODÈLES DE DOCUMENTS ── -->
+		{#if activeTab === 'modeles'}
+		<div class="space-y-4">
+			<div class="bg-blue-50 border border-blue-200 rounded-2xl p-4 flex items-start gap-3">
+				<svg class="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+				<div class="text-sm text-blue-800">
+					<p class="font-semibold mb-1">Modèles de documents officiels</p>
+					<p>Chargez un modèle (DOCX, ODT, PDF) par type de service. Une fois le template chargé, la génération d'acte utilisera ce modèle comme base. Les variables <code class="bg-blue-100 px-1 rounded font-mono text-xs">&#123;&#123;nom&#125;&#125;</code>, <code class="bg-blue-100 px-1 rounded font-mono text-xs">&#123;&#123;numero_acte&#125;&#125;</code> etc. seront automatiquement remplacées.</p>
+				</div>
+			</div>
+
+			{#if templatesLoading}
+				<div class="flex items-center justify-center py-16 text-gray-400">
+					<svg class="w-6 h-6 animate-spin mr-2" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+					Chargement...
+				</div>
+			{:else}
+				<div class="grid sm:grid-cols-2 gap-3">
+					{#each templates as tpl}
+						<div class="bg-white rounded-2xl border {tpl.configured ? 'border-primary-200' : 'border-gray-200'} p-4 shadow-sm">
+							<div class="flex items-start justify-between mb-3">
+								<div class="flex-1 min-w-0">
+									<p class="font-semibold text-gray-800 text-sm truncate">{tpl.label}</p>
+									{#if tpl.configured}
+										<p class="text-xs text-gray-500 truncate mt-0.5">📄 {tpl.nom_fichier}</p>
+										<p class="text-xs text-gray-400 mt-0.5">
+											Chargé le {new Date(tpl.uploaded_at).toLocaleDateString('fr-FR')}
+										</p>
+									{:else}
+										<p class="text-xs text-gray-400 mt-0.5 italic">Aucun modèle configuré</p>
+									{/if}
+								</div>
+								{#if tpl.configured}
+									<span class="flex-shrink-0 w-6 h-6 bg-primary-100 text-primary-600 rounded-full flex items-center justify-center text-xs ml-2">✓</span>
+								{:else}
+									<span class="flex-shrink-0 w-6 h-6 bg-gray-100 text-gray-400 rounded-full flex items-center justify-center text-xs ml-2">—</span>
+								{/if}
+							</div>
+
+							{#if templateToasts[tpl.key] === 'ok'}
+								<p class="text-xs text-primary-600 font-medium mb-2 flex items-center gap-1">
+									<svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+									Modèle chargé avec succès
+								</p>
+							{/if}
+
+							<div class="flex gap-2">
+								<label class="flex-1 cursor-pointer">
+									<input
+										type="file"
+										accept=".docx,.odt,.pdf,.doc"
+										class="hidden"
+										disabled={uploadingType === tpl.key}
+										on:change={(e) => handleTemplateUpload(tpl.key, e)}
+									/>
+									<span class="w-full flex items-center justify-center gap-1.5 text-xs font-semibold border-2 {tpl.configured ? 'border-gray-200 text-gray-600 hover:border-primary-400 hover:text-primary-600' : 'border-primary-300 text-primary-700 hover:border-primary-500'} rounded-xl py-2 px-3 transition-colors cursor-pointer {uploadingType === tpl.key ? 'opacity-50' : ''}">
+										{#if uploadingType === tpl.key}
+											<svg class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+										{:else}
+											<svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+										{/if}
+										{tpl.configured ? 'Remplacer' : 'Charger le modèle'}
+									</span>
+								</label>
+								{#if tpl.configured}
+									<button
+										on:click={() => deleteTemplate(tpl.key)}
+										class="flex-shrink-0 text-xs text-red-500 hover:text-red-700 border border-red-200 hover:border-red-400 rounded-xl py-2 px-2.5 transition-colors"
+										title="Supprimer le modèle"
+									>
+										<svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+									</button>
+								{/if}
+							</div>
+						</div>
+					{/each}
+				</div>
+			{/if}
+		</div>
+		{/if}
+
 
 		<!-- ── JOURNAL D'AUDIT ── -->
 		{#if activeTab === 'journal'}
