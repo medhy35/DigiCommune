@@ -3,13 +3,20 @@
 	import { authRole } from '$lib/stores/auth.js';
 	import { onMount } from 'svelte';
 
+	const ROLE_ROUTES = {
+		agent: '/agent',
+		superviseur: '/superviseur',
+		maire: '/maire',
+		superadmin: '/superadmin'
+	};
+
 	onMount(() => {
-		if ($authRole) goto(`/${$authRole === 'agent' ? 'agent' : $authRole}`);
+		if ($authRole) goto(ROLE_ROUTES[$authRole] || '/agent');
 	});
 
 	function loginAs(role) {
 		authRole.login(role);
-		goto(`/${role === 'agent' ? 'agent' : role}`);
+		goto(ROLE_ROUTES[role] || '/agent');
 	}
 
 	const roles = [
@@ -39,6 +46,15 @@
 			color: 'border-primary-200 hover:border-primary-400 hover:bg-primary-50',
 			badge: 'bg-primary-100 text-primary-700',
 			name: 'Jean-Marc Gnangoran'
+		},
+		{
+			id: 'superadmin',
+			label: 'Super Admin',
+			desc: 'Configuration complète de l\'application, gestion des modules, utilisateurs et paramètres système.',
+			icon: '🔐',
+			color: 'border-red-200 hover:border-red-400 hover:bg-red-50',
+			badge: 'bg-red-100 text-red-700',
+			name: 'Administrateur Système'
 		}
 	];
 </script>
@@ -85,7 +101,7 @@
 				</div>
 			</div>
 
-			<div class="grid sm:grid-cols-3 gap-4">
+			<div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
 				{#each roles as role}
 					<button
 						on:click={() => loginAs(role.id)}

@@ -18,5 +18,28 @@
     "notifications": {
       "cas_critique": true
     }
+  },
+  "global": {
+    "modules": {
+      "naissance": true,
+      "mariage": true,
+      "deces": true,
+      "attestation_concubinage": true,
+      "attestation_domicile": true,
+      "certification_documents": true,
+      "legalisation": true,
+      "inscription_livret": true,
+      "duplicata_livret": true,
+      "certificat_vie_entretien": true,
+      "certificat_vie_adulte": true,
+      "fiche_familiale": true,
+      "fiche_individuelle": true
+    },
+    "locked_params": [],
+    "frais_copie": 500,
+    "frais_copie_integrale": 2500,
+    "sla_heures_defaut": 48,
+    "delai_declaration_naissance_jours": 90,
+    "delai_declaration_deces_jours": 15
   }
 }

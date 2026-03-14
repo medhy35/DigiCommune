@@ -6,7 +6,8 @@
       "prenom": "Awa",
       "role": "agent",
       "email": "awa.diakite@mairie-cocody.ci",
-      "avatar": "AD"
+      "avatar": "AD",
+      "actif": true
     },
     {
       "id": "agent_002",
@@ -14,7 +15,8 @@
       "prenom": "Lassina",
       "role": "agent",
       "email": "lassina.coulibaly@mairie-cocody.ci",
-      "avatar": "LC"
+      "avatar": "LC",
+      "actif": true
     }
   ],
   "superviseurs": [
@@ -24,7 +26,8 @@
       "prenom": "Kadiatou",
       "role": "superviseur",
       "email": "kadiatou.traore@mairie-cocody.ci",
-      "avatar": "KT"
+      "avatar": "KT",
+      "actif": true
     }
   ],
   "maire": {
@@ -33,6 +36,16 @@
     "prenom": "Jean-Marc",
     "role": "maire",
     "email": "maire@mairie-cocody.ci",
-    "avatar": "JG"
+    "avatar": "JG",
+    "actif": true
+  },
+  "superadmin": {
+    "id": "superadmin_001",
+    "nom": "Système",
+    "prenom": "Administrateur",
+    "role": "superadmin",
+    "email": "admin@mairie-cocody.ci",
+    "avatar": "SA",
+    "actif": true
   }
 }

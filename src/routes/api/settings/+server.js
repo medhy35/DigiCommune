@@ -20,7 +20,8 @@ export function GET({ url }) {
 	else if (role === 'superviseur') profil = utilisateurs.superviseurs[0];
 	else if (role === 'maire') profil = utilisateurs.maire;
 
-	return json({ settings: role ? settings[role] : settings, profil });
+	const locked_params = settings.global?.locked_params || [];
+	return json({ settings: role ? settings[role] : settings, profil, locked_params });
 }
 
 /** PUT /api/settings  → { role, settings } */

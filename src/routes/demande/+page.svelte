@@ -1,5 +1,6 @@
 <script>
 	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { downloadAttestationDepotPDF } from '$lib/utils/pdf.js';
 	import { toast } from '$lib/stores/toast.js';
@@ -393,7 +394,7 @@
 		</button>
 		<p class="text-xs text-gray-400 text-center mb-4">Conservez ce document comme preuve de dépôt de votre demande.</p>
 		<div class="flex flex-col sm:flex-row gap-3 justify-center">
-			<a href="/suivi/{newDemande.id}" class="btn-primary">Suivre ma demande</a>
+			<button on:click={() => goto('/suivi', { state: { demande: newDemande } })} class="btn-primary">Suivre ma demande</button>
 			<a href="/" class="btn-secondary">Retour à l'accueil</a>
 		</div>
 	</div>

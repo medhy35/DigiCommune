@@ -7,6 +7,7 @@
 	let role = null;
 	let profil = null;
 	let settings = null;
+	let locked_params = [];
 	let loading = true;
 	let saving = false;
 
@@ -16,6 +17,10 @@
 	let periode_dashboard = 'mois';
 	let notif = {};
 
+	function isLocked(param) {
+		return locked_params.includes(param);
+	}
+
 	onMount(async () => {
 		role = $authRole;
 		if (!role) { goto('/agent/login'); return; }
@@ -24,6 +29,7 @@
 		const data = await res.json();
 		settings = data.settings;
 		profil = data.profil;
+		locked_params = data.locked_params || [];
 
 		// Init local bindings
 		sla_heures = settings?.sla_heures ?? 48;
@@ -136,9 +142,17 @@
 		<div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
 			<h2 class="font-syne font-semibold text-gray-700 text-sm uppercase tracking-wide mb-4">Alertes SLA</h2>
 			<label class="block">
+				<div class="flex items-center gap-2 mb-1">
 				<span class="text-sm font-medium text-gray-700">Délai d'alerte (heures)</span>
-				<p class="text-xs text-gray-400 mb-2">Un badge d'alerte apparaît sur les demandes sans action passé ce délai.</p>
-				<select bind:value={sla_heures} class="input-field text-sm w-40">
+				{#if isLocked('sla_heures')}
+					<span class="inline-flex items-center gap-1 text-xs text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+						<svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+						Verrouillé par l'administrateur
+					</span>
+				{/if}
+			</div>
+			<p class="text-xs text-gray-400 mb-2">Un badge d'alerte apparaît sur les demandes sans action passé ce délai.</p>
+				<select bind:value={sla_heures} disabled={isLocked('sla_heures')} class="input-field text-sm w-40 {isLocked('sla_heures') ? 'opacity-50 cursor-not-allowed' : ''}">
 					<option value={24}>24 heures</option>
 					<option value={48}>48 heures</option>
 					<option value={72}>72 heures</option>
@@ -149,9 +163,17 @@
 		<div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
 			<h2 class="font-syne font-semibold text-gray-700 text-sm uppercase tracking-wide mb-4">Seuil d'alerte escalades</h2>
 			<label class="block">
+				<div class="flex items-center gap-2 mb-1">
 				<span class="text-sm font-medium text-gray-700">Nombre d'escalades déclenchant l'alerte</span>
-				<p class="text-xs text-gray-400 mb-2">Affiche un indicateur visuel rouge sur le tableau de bord quand ce seuil est atteint.</p>
-				<select bind:value={seuil_escalades_alerte} class="input-field text-sm w-40">
+				{#if isLocked('seuil_escalades_alerte')}
+					<span class="inline-flex items-center gap-1 text-xs text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+						<svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+						Verrouillé par l'administrateur
+					</span>
+				{/if}
+			</div>
+			<p class="text-xs text-gray-400 mb-2">Affiche un indicateur visuel rouge sur le tableau de bord quand ce seuil est atteint.</p>
+				<select bind:value={seuil_escalades_alerte} disabled={isLocked('seuil_escalades_alerte')} class="input-field text-sm w-40 {isLocked('seuil_escalades_alerte') ? 'opacity-50 cursor-not-allowed' : ''}">
 					<option value={1}>1 escalade</option>
 					<option value={3}>3 escalades</option>
 					<option value={5}>5 escalades</option>
@@ -163,9 +185,17 @@
 		<div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
 			<h2 class="font-syne font-semibold text-gray-700 text-sm uppercase tracking-wide mb-4">Période du tableau de bord</h2>
 			<label class="block">
+				<div class="flex items-center gap-2 mb-1">
 				<span class="text-sm font-medium text-gray-700">Période d'analyse par défaut</span>
-				<p class="text-xs text-gray-400 mb-2">Définit la plage temporelle affichée sur la vue synthétique.</p>
-				<select bind:value={periode_dashboard} class="input-field text-sm w-48">
+				{#if isLocked('periode_dashboard')}
+					<span class="inline-flex items-center gap-1 text-xs text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+						<svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+						Verrouillé par l'administrateur
+					</span>
+				{/if}
+			</div>
+			<p class="text-xs text-gray-400 mb-2">Définit la plage temporelle affichée sur la vue synthétique.</p>
+				<select bind:value={periode_dashboard} disabled={isLocked('periode_dashboard')} class="input-field text-sm w-48 {isLocked('periode_dashboard') ? 'opacity-50 cursor-not-allowed' : ''}">
 					<option value="semaine">Cette semaine</option>
 					<option value="mois">Ce mois</option>
 					<option value="trimestre">Ce trimestre</option>
