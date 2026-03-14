@@ -38,8 +38,9 @@
 	let errors = {};
 
 	onMount(async () => {
-		const typeFromUrl = $page.url.searchParams.get('type');
-		if (typeFromUrl) form.type_acte = typeFromUrl;
+		// Type passé via navigation state (invisible dans l'URL)
+		const typeFromState = $page.state?.serviceType;
+		if (typeFromState && TYPE_LABELS[typeFromState]) form.type_acte = typeFromState;
 		const res = await fetch('/api/commune');
 		commune = await res.json();
 	});

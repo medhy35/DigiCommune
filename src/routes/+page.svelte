@@ -56,20 +56,28 @@
 	];
 
 	const autresServices = [
-		{ icon: '🤝', label: 'Attestation de concubinage', tab: 'attestations', href: '/demande?type=attestation_concubinage', online: true },
-		{ icon: '🏠', label: 'Attestation de domicile', tab: 'attestations', href: '/demarches?type=attestations', online: false },
-		{ icon: '✅', label: 'Certification de documents', tab: 'certifications', href: '/demande?type=certification_documents', online: true },
-		{ icon: '🔏', label: 'Légalisation de signature', tab: 'certifications', href: '/demande?type=legalisation', online: true },
-		{ icon: '📖', label: 'Inscription au livret de famille', tab: 'livret', href: '/demarches?type=livret', online: false },
-		{ icon: '📋', label: 'Duplicata du livret de famille', tab: 'livret', href: '/demande?type=duplicata_livret', online: true },
-		{ icon: '💍', label: 'Dossier de mariage', tab: 'mariage', href: '/demarches?type=mariage', online: false },
-		{ icon: '🎖️', label: 'Recensement militaire', tab: 'attestations', href: '/demarches?type=attestations', online: false },
-		{ icon: '👨‍👩‍👧', label: 'Certificat de vie et entretien', tab: 'certificats', href: '/demande?type=certificat_vie_entretien', online: true },
-		{ icon: '👴', label: 'Certificat de vie adulte', tab: 'certificats', href: '/demarches?type=certificats', online: false },
-		{ icon: '👪', label: 'Fiche familiale d\'état civil', tab: 'certificats', href: '/demande?type=fiche_familiale', online: true },
-		{ icon: '🙋', label: 'Fiche individuelle d\'état civil', tab: 'certificats', href: '/demande?type=fiche_individuelle', online: true },
-		{ icon: '🔍', label: 'Copie d\'extrait égaré', tab: 'naissance', href: '/demarches?type=naissance', online: false }
+		{ icon: '🤝', label: 'Attestation de concubinage',    serviceType: 'attestation_concubinage',   demandeTab: 'attestations', online: true },
+		{ icon: '🏠', label: 'Attestation de domicile',       serviceType: null,                         demandeTab: 'attestations', online: false },
+		{ icon: '✅', label: 'Certification de documents',    serviceType: 'certification_documents',    demandeTab: 'certifications', online: true },
+		{ icon: '🔏', label: 'Légalisation de signature',     serviceType: 'legalisation',               demandeTab: 'certifications', online: true },
+		{ icon: '📖', label: 'Inscription au livret de famille', serviceType: null,                      demandeTab: 'livret', online: false },
+		{ icon: '📋', label: 'Duplicata du livret de famille', serviceType: 'duplicata_livret',          demandeTab: 'livret', online: true },
+		{ icon: '💍', label: 'Dossier de mariage',            serviceType: null,                         demandeTab: 'mariage', online: false },
+		{ icon: '🎖️', label: 'Recensement militaire',         serviceType: null,                         demandeTab: 'attestations', online: false },
+		{ icon: '👨‍👩‍👧', label: 'Certificat de vie et entretien', serviceType: 'certificat_vie_entretien', demandeTab: 'certificats', online: true },
+		{ icon: '👴', label: 'Certificat de vie adulte',      serviceType: null,                         demandeTab: 'certificats', online: false },
+		{ icon: '👪', label: 'Fiche familiale d\'état civil', serviceType: 'fiche_familiale',            demandeTab: 'certificats', online: true },
+		{ icon: '🙋', label: 'Fiche individuelle d\'état civil', serviceType: 'fiche_individuelle',      demandeTab: 'certificats', online: true },
+		{ icon: '🔍', label: 'Copie d\'extrait égaré',        serviceType: null,                         demandeTab: 'naissance', online: false }
 	];
+
+	function goToService(s) {
+		if (s.online && s.serviceType) {
+			goto('/demande', { state: { serviceType: s.serviceType } });
+		} else {
+			goto('/demarches', { state: { tab: s.demandeTab } });
+		}
+	}
 </script>
 
 <svelte:head>
@@ -152,18 +160,20 @@
 				<h3 class="font-syne font-bold text-lg text-gray-800 mb-2">{service.label}</h3>
 				<p class="text-sm text-gray-600 leading-relaxed flex-1">{service.desc}</p>
 				<div class="mt-5 flex items-center gap-2">
-					<a href="/demande?type={service.type}" class="btn-primary text-sm py-2 flex-1 justify-center">
+					<button
+						on:click={() => goto('/demande', { state: { serviceType: service.type } })}
+						class="btn-primary text-sm py-2 flex-1 justify-center">
 						Faire une demande
-					</a>
-					<a
-						href="/demarches?type={service.type}"
+					</button>
+					<button
+						on:click={() => goto('/demarches', { state: { tab: service.type } })}
 						class="w-10 h-10 flex items-center justify-center border border-gray-300 rounded-lg text-gray-500 hover:border-primary-400 hover:text-primary-600 hover:bg-primary-50 transition-all"
 						title="Guide de la démarche"
 					>
 						<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
 						</svg>
-					</a>
+					</button>
 				</div>
 			</div>
 		{/each}
@@ -192,9 +202,9 @@
 		</div>
 		<div class="grid sm:grid-cols-2 gap-2.5">
 			{#each autresServices as s}
-				<a
-					href={s.href}
-					class="flex items-center gap-3 p-3.5 rounded-xl border border-gray-100 bg-white hover:border-primary-200 hover:bg-primary-50/30 transition-all group"
+				<button
+					on:click={() => goToService(s)}
+					class="flex items-center gap-3 p-3.5 rounded-xl border border-gray-100 bg-white hover:border-primary-200 hover:bg-primary-50/30 transition-all group text-left w-full"
 				>
 					<span class="text-xl flex-shrink-0">{s.icon}</span>
 					<span class="flex-1 text-sm font-medium text-gray-700 group-hover:text-primary-700">{s.label}</span>
@@ -203,7 +213,7 @@
 					{:else}
 						<span class="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full whitespace-nowrap flex-shrink-0">En mairie</span>
 					{/if}
-				</a>
+				</button>
 			{/each}
 		</div>
 	</div>

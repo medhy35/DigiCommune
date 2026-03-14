@@ -7,8 +7,11 @@
 	let activeTab = 'naissance';
 
 	onMount(() => {
-		const type = $page.url.searchParams.get('type');
-		if (type && VALID_TABS.includes(type)) activeTab = type;
+		// Priorité au state de navigation (pas de paramètre visible dans l'URL)
+		const tabFromState = $page.state?.tab;
+		if (tabFromState && VALID_TABS.includes(tabFromState)) {
+			activeTab = tabFromState;
+		}
 	});
 
 	const demarches = {
@@ -52,7 +55,7 @@
 					],
 					frais: { montant: 2500, unite: 'FCFA', par: 'copie' },
 					direction: 'Mairie',
-					cta: { label: 'Faire une demande en ligne', href: '/demande?type=naissance' }
+					cta: { label: 'Faire une demande en ligne', serviceType: 'naissance' }
 				},
 				{
 					id: 'extrait_egare',
@@ -92,7 +95,7 @@
 					],
 					frais: { montant: 2500, unite: 'FCFA', par: 'copie' },
 					direction: 'Mairie',
-					cta: { label: 'Faire une demande en ligne', href: '/demande?type=mariage' }
+					cta: { label: 'Faire une demande en ligne', serviceType: 'mariage' }
 				},
 				{
 					id: 'dossier_mariage',
@@ -156,7 +159,7 @@
 					],
 					frais: { montant: 2500, unite: 'FCFA', par: 'copie' },
 					direction: 'Mairie',
-					cta: { label: 'Faire une demande en ligne', href: '/demande?type=deces' }
+					cta: { label: 'Faire une demande en ligne', serviceType: 'deces' }
 				}
 			]
 		},
@@ -179,7 +182,7 @@
 					],
 					frais: { montant: 500, unite: 'FCFA', par: 'copie (frais de timbre)' },
 					direction: 'Mairie du domicile du demandeur',
-					cta: { label: 'Faire une demande en ligne', href: '/demande?type=attestation_concubinage' }
+					cta: { label: 'Faire une demande en ligne', serviceType: 'attestation_concubinage' }
 				},
 				{
 					id: 'attestation_domicile',
@@ -234,7 +237,7 @@
 					],
 					frais: { montant: 500, unite: 'FCFA', par: 'copie' },
 					direction: 'Mairie du domicile du demandeur',
-					cta: { label: 'Faire une demande en ligne', href: '/demande?type=certification_documents' }
+					cta: { label: 'Faire une demande en ligne', serviceType: 'certification_documents' }
 				},
 				{
 					id: 'legalisation',
@@ -252,7 +255,7 @@
 					frais: { montant: 500, unite: 'FCFA', par: 'copie (frais de timbre)' },
 					direction: 'Toute Mairie',
 					note: 'Les agents publics ne peuvent traiter des documents en langue étrangère non traduits en français.',
-					cta: { label: 'Faire une demande en ligne', href: '/demande?type=legalisation' }
+					cta: { label: 'Faire une demande en ligne', serviceType: 'legalisation' }
 				}
 			]
 		},
@@ -291,7 +294,7 @@
 					],
 					frais: { montant: 5500, unite: 'FCFA', par: 'duplicata' },
 					direction: 'Mairie du lieu de mariage',
-					cta: { label: 'Faire une demande en ligne', href: '/demande?type=duplicata_livret' }
+					cta: { label: 'Faire une demande en ligne', serviceType: 'duplicata_livret' }
 				}
 			]
 		},
@@ -315,7 +318,7 @@
 					frais: { montant: 1000, unite: 'FCFA', par: 'certificat' },
 					direction: 'Mairie (Service de l\'État Civil)',
 					note: 'Cible : le père, la mère ou le tuteur d\'un enfant mineur.',
-					cta: { label: 'Faire une demande en ligne', href: '/demande?type=certificat_vie_entretien' }
+					cta: { label: 'Faire une demande en ligne', serviceType: 'certificat_vie_entretien' }
 				},
 				{
 					id: 'certificat_vie_adulte',
@@ -349,7 +352,7 @@
 					],
 					frais: { montant: 5500, unite: 'FCFA', par: 'fiche' },
 					direction: 'Mairie (Service de l\'État Civil)',
-					cta: { label: 'Faire une demande en ligne', href: '/demande?type=fiche_familiale' }
+					cta: { label: 'Faire une demande en ligne', serviceType: 'fiche_familiale' }
 				},
 				{
 					id: 'fiche_individuelle',
@@ -366,7 +369,7 @@
 					],
 					frais: { montant: 5500, unite: 'FCFA', par: 'fiche' },
 					direction: 'Mairie (Service de l\'État Civil)',
-					cta: { label: 'Faire une demande en ligne', href: '/demande?type=fiche_individuelle' }
+					cta: { label: 'Faire une demande en ligne', serviceType: 'fiche_individuelle' }
 				}
 			]
 		}
@@ -558,12 +561,14 @@
 
 						<!-- CTA -->
 						{#if section.cta}
-							<a href={section.cta.href} class="btn-primary text-sm">
+							<button
+								on:click={() => goto('/demande', { state: { serviceType: section.cta.serviceType } })}
+								class="btn-primary text-sm">
 								<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
 								</svg>
 								{section.cta.label}
-							</a>
+							</button>
 						{:else}
 							<a href="/suivi" class="btn-secondary text-sm">
 								<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
