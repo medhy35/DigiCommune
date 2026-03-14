@@ -1,5 +1,6 @@
 <!-- Composant réutilisable : détail complet d'une demande pour les 3 rôles back-office -->
 <script>
+	import { createEventDispatcher } from 'svelte';
 	import Timeline from './Timeline.svelte';
 	import StatusBadge from './StatusBadge.svelte';
 	import {
@@ -9,7 +10,25 @@
 
 	export let demande;
 	export let showTimeline = true;
-	export let compact = false; // moins de padding pour les side panels
+	export let compact = false;
+	export let allowNotes = false;
+	export let currentUserId = null;
+	export let currentUserRole = null;
+
+	const dispatch = createEventDispatcher();
+
+	let newNote = '';
+	let addingNote = false;
+
+	async function submitNote() {
+		if (!newNote.trim() || addingNote) return;
+		addingNote = true;
+		dispatch('addNote', { note: newNote.trim(), demandeId: demande.id });
+		newNote = '';
+		addingNote = false;
+	}
+
+	$: notesHistory = (demande?.historique || []).filter(h => h.type === 'note');
 
 	// Lightbox pour preview document image
 	let lightboxSrc = null;
@@ -235,6 +254,53 @@
 			<h3 class="font-syne font-semibold text-gray-600 text-xs uppercase tracking-wide mb-4">Historique</h3>
 			<Timeline historique={demande.historique} statut={demande.statut} />
 		</div>
+	{/if}
+
+	<!-- Notes internes -->
+	{#if allowNotes}
+	<div class="bg-white rounded-xl border border-blue-100 p-4 shadow-sm">
+		<h3 class="font-syne font-semibold text-gray-600 text-xs uppercase tracking-wide mb-3 flex items-center gap-1.5">
+			<span class="w-5 h-5 bg-blue-100 text-blue-600 rounded flex items-center justify-center text-xs">💬</span>
+			Notes internes
+			{#if notesHistory.length > 0}
+				<span class="ml-auto bg-blue-100 text-blue-700 text-xs font-bold px-2 py-0.5 rounded-full">{notesHistory.length}</span>
+			{/if}
+		</h3>
+
+		<!-- Existing notes -->
+		{#if notesHistory.length > 0}
+			<div class="space-y-2 mb-3">
+				{#each notesHistory as note}
+					<div class="bg-blue-50 border border-blue-100 rounded-lg p-3">
+						<div class="flex items-center justify-between mb-1">
+							<span class="text-xs font-semibold text-blue-700">{note.par}</span>
+							<span class="text-xs text-gray-400">{formatDateTime(note.date)}</span>
+						</div>
+						<p class="text-sm text-gray-700 leading-relaxed">{note.note}</p>
+					</div>
+				{/each}
+			</div>
+		{:else}
+			<p class="text-xs text-gray-400 mb-3 italic">Aucune note interne pour l'instant.</p>
+		{/if}
+
+		<!-- Add note form -->
+		<div class="flex gap-2">
+			<textarea
+				bind:value={newNote}
+				placeholder="Ajouter une note interne (visible par toute l'équipe)…"
+				rows="2"
+				class="flex-1 text-sm border border-gray-200 rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400"
+			></textarea>
+			<button
+				on:click={submitNote}
+				disabled={!newNote.trim() || addingNote}
+				class="flex-shrink-0 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-semibold px-3 py-2 rounded-lg transition-colors"
+			>
+				{addingNote ? '…' : 'Ajouter'}
+			</button>
+		</div>
+	</div>
 	{/if}
 
 	<!-- Escalade -->

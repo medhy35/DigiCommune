@@ -132,6 +132,17 @@
 		return agent ? `${agent.prenom} ${agent.nom}` : agentId;
 	}
 
+	async function handleAddNote(e) {
+		const { note, demandeId } = e.detail;
+		await fetch(`/api/demandes/${demandeId}`, {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ note_interne: note, par: 'sup_001' })
+		});
+		await loadData();
+		toast('Note ajoutée');
+	}
+
 	async function resoudreEscalade() {
 		saving = true;
 		const res = await fetch(`/api/demandes/${selectedDemande.id}`, {
@@ -535,7 +546,14 @@
 					</div>
 
 					<!-- Détail complet -->
-					<DemandeDetailPanel demande={selectedDemande} compact={true} />
+					<DemandeDetailPanel
+						demande={selectedDemande}
+						compact={true}
+						allowNotes={true}
+						currentUserId="sup_001"
+						currentUserRole="superviseur"
+						on:addNote={handleAddNote}
+					/>
 				</div>
 			{:else}
 				<div class="card text-center py-16 text-gray-400">

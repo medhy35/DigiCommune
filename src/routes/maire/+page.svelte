@@ -102,6 +102,49 @@
 		return `M ${sx} ${sy} A ${r} ${r} 0 ${large} 1 ${ex} ${ey}`;
 	})();
 
+	// ── Journal d'audit ───────────────────────────────────────
+	let auditLog = [];
+	let auditLoading = false;
+	let auditFilter = '';
+	let auditTypeFilter = '';
+
+	async function loadAudit() {
+		auditLoading = true;
+		const res = await fetch('/api/audit?limit=300');
+		if (res.ok) auditLog = await res.json();
+		auditLoading = false;
+	}
+
+	$: filteredAudit = auditLog.filter(e => {
+		const q = auditFilter.toLowerCase();
+		const matchSearch = !q || e.demande_id.toLowerCase().includes(q) || e.demandeur.toLowerCase().includes(q) || e.par.toLowerCase().includes(q) || (e.note || '').toLowerCase().includes(q);
+		const matchType = !auditTypeFilter || e.action === auditTypeFilter;
+		return matchSearch && matchType;
+	});
+
+	const AUDIT_LABELS = {
+		changement_statut: 'Changement de statut',
+		note_interne: 'Note interne',
+		escalade: 'Escalade',
+		remboursement: 'Remboursement'
+	};
+	const AUDIT_COLORS = {
+		changement_statut: 'bg-blue-100 text-blue-700',
+		note_interne: 'bg-indigo-100 text-indigo-700',
+		escalade: 'bg-orange-100 text-orange-700',
+		remboursement: 'bg-red-100 text-red-700'
+	};
+
+	async function handleAddNote(e) {
+		const { note, demandeId } = e.detail;
+		await fetch(`/api/demandes/${demandeId}`, {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ note_interne: note, par: 'maire_001' })
+		});
+		await loadData();
+	}
+
 	async function actionMaire(action) {
 		saving = true;
 		const newStatut = action === 'valider' ? 'disponible' : 'rejetee';
@@ -162,6 +205,12 @@
 			class="px-4 py-2 rounded-lg text-sm font-medium transition-all {activeTab === 'toutes' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'}"
 		>
 			📋 Toutes les demandes
+		</button>
+		<button
+			on:click={() => { activeTab = 'journal'; if (!auditLog.length) loadAudit(); }}
+			class="px-4 py-2 rounded-lg text-sm font-medium transition-all {activeTab === 'journal' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'}"
+		>
+			📜 Journal d'audit
 		</button>
 	</div>
 
@@ -443,7 +492,14 @@
 							{/if}
 
 							<!-- Détail complet du dossier -->
-							<DemandeDetailPanel demande={selectedDemande} compact={true} />
+							<DemandeDetailPanel
+								demande={selectedDemande}
+								compact={true}
+								allowNotes={true}
+								currentUserId="maire_001"
+								currentUserRole="maire"
+								on:addNote={handleAddNote}
+							/>
 						</div>
 					{:else}
 						<div class="card text-center py-16 text-gray-400">
@@ -498,5 +554,94 @@
 				</div>
 			</div>
 		{/if}
+	{/if}
+
+	<!-- ═══════════════════════════════════════════════════════ -->
+	<!-- TAB: JOURNAL D'AUDIT                                    -->
+	<!-- ═══════════════════════════════════════════════════════ -->
+	{#if activeTab === 'journal'}
+	<div class="space-y-4">
+		<!-- Filters -->
+		<div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-wrap gap-3 items-center">
+			<input
+				bind:value={auditFilter}
+				type="search"
+				placeholder="Rechercher un dossier, agent, note…"
+				class="input-field text-sm w-64"
+			/>
+			<select bind:value={auditTypeFilter} class="input-field text-sm w-52">
+				<option value="">Tous les types d'action</option>
+				<option value="changement_statut">Changements de statut</option>
+				<option value="note_interne">Notes internes</option>
+				<option value="escalade">Escalades</option>
+				<option value="remboursement">Remboursements</option>
+			</select>
+			{#if auditFilter || auditTypeFilter}
+				<button on:click={() => { auditFilter = ''; auditTypeFilter = ''; }} class="text-xs text-gray-500 hover:text-gray-700 underline">
+					Réinitialiser
+				</button>
+			{/if}
+			<span class="ml-auto text-xs text-gray-400">{filteredAudit.length} entrée{filteredAudit.length > 1 ? 's' : ''}</span>
+		</div>
+
+		<!-- Table -->
+		<div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+			{#if auditLoading}
+				<div class="flex items-center justify-center py-16 text-gray-400">
+					<svg class="w-6 h-6 animate-spin mr-2" fill="none" viewBox="0 0 24 24">
+						<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+						<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+					</svg>
+					Chargement du journal…
+				</div>
+			{:else if filteredAudit.length === 0}
+				<div class="text-center py-16 text-gray-400">
+					<p class="text-3xl mb-2">📜</p>
+					<p class="text-sm">Aucune entrée trouvée</p>
+				</div>
+			{:else}
+				<div class="overflow-x-auto">
+					<table class="w-full text-sm">
+						<thead class="bg-gray-50 border-b border-gray-100">
+							<tr>
+								<th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Date</th>
+								<th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Dossier</th>
+								<th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden sm:table-cell">Action</th>
+								<th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden md:table-cell">Par</th>
+								<th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Détail</th>
+							</tr>
+						</thead>
+						<tbody class="divide-y divide-gray-50">
+							{#each filteredAudit as entry}
+								<tr class="hover:bg-gray-50 transition-colors">
+									<td class="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
+										{new Date(entry.date).toLocaleString('fr-FR', { day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit' })}
+									</td>
+									<td class="px-4 py-3">
+										<span class="font-mono text-xs font-semibold text-gray-800">{entry.demande_id}</span>
+										<p class="text-xs text-gray-400 mt-0.5 truncate max-w-[120px]">{entry.demandeur}</p>
+									</td>
+									<td class="px-4 py-3 hidden sm:table-cell">
+										<span class="text-xs font-medium px-2 py-0.5 rounded-full {AUDIT_COLORS[entry.action] || 'bg-gray-100 text-gray-600'}">
+											{AUDIT_LABELS[entry.action] || entry.action}
+										</span>
+									</td>
+									<td class="px-4 py-3 text-xs text-gray-600 hidden md:table-cell">{entry.par}</td>
+									<td class="px-4 py-3 text-xs text-gray-500 max-w-xs">
+										{#if entry.statut && entry.action === 'changement_statut'}
+											<span class="text-gray-700">→ <strong>{entry.statut}</strong></span>
+										{/if}
+										{#if entry.note}
+											<span class="italic text-gray-500 line-clamp-2">{entry.note}</span>
+										{/if}
+									</td>
+								</tr>
+							{/each}
+						</tbody>
+					</table>
+				</div>
+			{/if}
+		</div>
+	</div>
 	{/if}
 </main>

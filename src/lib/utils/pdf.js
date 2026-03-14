@@ -1,4 +1,4 @@
-import { TYPE_ACTE_LABELS, formatDate } from './helpers.js';
+import { TYPE_ACTE_LABELS, formatDate, formatDateTime } from './helpers.js';
 
 /** Shared: load pdfmake once */
 async function getPdfMake() {
@@ -487,4 +487,248 @@ export async function downloadBonRemboursementPDF(demande, commune) {
 
 	const blob = await new Promise((resolve) => pdfMake.createPdf(docDefinition).getBlob(resolve));
 	triggerDownload(blob, `bon-remboursement-${demande.id}.pdf`);
+}
+
+// ─── RÉCAPITULATIF CITOYEN (SUIVI COMPLET) ────────────────────────────────────
+
+const DOCS_REQUIS_LABELS = {
+	naissance:               ['CNI ou passeport du déclarant', 'Bulletin de naissance de la maternité', 'Carnet de mariage des parents (si disponible)'],
+	mariage:                 ['CNI des deux époux', 'Extrait de naissance des deux époux', 'Certificat de célibat', 'Témoins (2) avec CNI'],
+	deces:                   ['CNI du déclarant', 'Certificat médical de décès', 'CNI du défunt (si disponible)'],
+	attestation_concubinage: ['CNI des deux concubins', 'Justificatif de domicile commun'],
+	attestation_domicile:    ['CNI du demandeur', 'Justificatif de domicile (facture eau/électricité)'],
+	certification_documents: ['Document original à certifier', 'CNI du demandeur'],
+	legalisation:            ['Document à légaliser', 'CNI du demandeur'],
+	inscription_livret:      ['Livret de famille original', 'Acte de naissance de l\'enfant', 'CNI des deux parents'],
+	duplicata_livret:        ['CNI des deux époux', 'Extrait de naissance des époux', 'Déclaration de perte (si perte)'],
+	certificat_vie_entretien:['CNI du demandeur', 'Présence physique obligatoire'],
+	certificat_vie_adulte:   ['CNI du demandeur', 'Présence physique obligatoire'],
+	fiche_familiale:         ['CNI du chef de famille', 'Livret de famille', 'Extrait de naissance de chaque enfant'],
+	fiche_individuelle:      ['CNI du demandeur', 'Extrait de naissance']
+};
+
+const STATUT_LABELS_FR = {
+	recue:       'Reçue — en attente de traitement',
+	en_cours:    'En cours de traitement',
+	traitee:     'Traitée — en attente de retrait',
+	disponible:  'Disponible — prête à retirer',
+	rejetee:     'Rejetée',
+	en_attente:  'En attente'
+};
+
+const NEXT_STEPS = {
+	recue:      'Votre demande a été enregistrée. Un agent va la prendre en charge dans les meilleurs délais.',
+	en_cours:   'Votre dossier est en cours de traitement par nos agents. Vous serez notifié(e) dès qu\'il sera prêt.',
+	traitee:    'Votre document est prêt. Présentez-vous au guichet de l\'état civil avec ce reçu et votre pièce d\'identité.',
+	disponible: 'Votre document est disponible. Présentez-vous au guichet de l\'état civil avec ce reçu et votre pièce d\'identité.',
+	rejetee:    'Votre demande a été rejetée. Contactez la mairie pour plus d\'informations ou soumettez une nouvelle demande.'
+};
+
+export async function downloadSuiviCompletPDF(demande, commune) {
+	const pdfMake = await getPdfMake();
+	const typeLabel = TYPE_ACTE_LABELS[demande.type_acte] || demande.type_acte;
+	const docsRequis = DOCS_REQUIS_LABELS[demande.type_acte] || ['Pièce d\'identité valide'];
+	const statutLabel = STATUT_LABELS_FR[demande.statut] || demande.statut;
+	const nextStep = NEXT_STEPS[demande.statut] || '';
+	const now = new Date();
+
+	// Status color
+	const statusColors = {
+		recue: '#3b82f6', en_cours: '#f59e0b',
+		traitee: '#10b981', disponible: '#059669', rejetee: '#ef4444'
+	};
+	const statusColor = statusColors[demande.statut] || '#6b7280';
+
+	// Build historique summary (last 5 entries)
+	const lastActions = (demande.historique || []).slice(-5).reverse().map(h => [
+		{ text: new Date(h.date).toLocaleDateString('fr-FR'), style: 'hist_date' },
+		{ text: h.statut || '—', style: 'hist_statut' },
+		{ text: h.note || '—', style: 'hist_note' }
+	]);
+
+	const docDefinition = {
+		pageSize: 'A4',
+		pageMargins: [45, 55, 45, 55],
+		content: [
+			...headerBlock(commune),
+
+			// Title
+			{
+				columns: [
+					{
+						stack: [
+							{ text: 'RÉCAPITULATIF DE DEMANDE', style: 'titre_suivi' },
+							{ text: `Référence : ${demande.id}`, style: 'ref_suivi' },
+							{ text: `Généré le ${now.toLocaleDateString('fr-FR')} à ${now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`, style: 'date_gen' }
+						]
+					},
+					{
+						stack: [
+							{ text: statutLabel.toUpperCase(), style: 'statut_badge', color: statusColor }
+						],
+						alignment: 'right'
+					}
+				]
+			},
+			{ canvas: [{ type: 'line', x1: 0, y1: 8, x2: 505, y2: 8, lineWidth: 1, lineColor: '#e5e7eb' }] },
+			{ text: '\n' },
+
+			// Two columns: demandeur + service
+			{
+				columns: [
+					{
+						stack: [
+							{ text: 'DEMANDEUR', style: 'section_label' },
+							{
+								style: 'info_table',
+								table: {
+									widths: [80, '*'],
+									body: [
+										[{ text: 'Nom complet', style: 'tbl_key' }, { text: `${demande.demandeur.prenom} ${demande.demandeur.nom}`, style: 'tbl_val' }],
+										[{ text: 'Téléphone', style: 'tbl_key' }, { text: demande.demandeur.telephone || '—', style: 'tbl_val' }],
+										[{ text: 'CNI', style: 'tbl_key' }, { text: demande.demandeur.cni || '—', style: 'tbl_val' }]
+									]
+								},
+								layout: 'noBorders'
+							}
+						],
+						width: '*'
+					},
+					{ width: 20, text: '' },
+					{
+						stack: [
+							{ text: 'SERVICE DEMANDÉ', style: 'section_label' },
+							{
+								style: 'info_table',
+								table: {
+									widths: [80, '*'],
+									body: [
+										[{ text: 'Type', style: 'tbl_key' }, { text: typeLabel, style: 'tbl_val' }],
+										...(demande.copies > 1 ? [[{ text: 'Copies', style: 'tbl_key' }, { text: `${demande.copies} copie(s)`, style: 'tbl_val' }]] : []),
+										[{ text: 'Soumis le', style: 'tbl_key' }, { text: formatDate(demande.created_at), style: 'tbl_val' }],
+										...(demande.paiement ? [[{ text: 'Frais', style: 'tbl_key' }, { text: `${demande.paiement.montant?.toLocaleString('fr-FR') || 0} FCFA`, style: 'tbl_val' }]] : [])
+									]
+								},
+								layout: 'noBorders'
+							}
+						],
+						width: '*'
+					}
+				]
+			},
+			{ text: '\n' },
+
+			// Paiement status
+			...(demande.paiement ? [{
+				fillColor: demande.paiement.statut === 'paye' ? '#f0fdf4' : '#fffbeb',
+				table: {
+					widths: ['*'],
+					body: [[{
+						stack: [
+							{
+								columns: [
+									{ text: demande.paiement.statut === 'paye' ? '✓ Paiement confirmé' : '⏳ Paiement en attente', style: demande.paiement.statut === 'paye' ? 'pay_ok' : 'pay_pending', width: '*' },
+									{ text: `${demande.paiement.montant?.toLocaleString('fr-FR')} FCFA`, style: 'pay_amount', alignment: 'right', width: 'auto' }
+								]
+							},
+							...(demande.paiement.reference ? [{ text: `Réf. transaction : ${demande.paiement.reference}`, style: 'pay_ref' }] : [])
+						],
+						margin: [12, 8, 12, 8]
+					}]]
+				},
+				layout: { hLineWidth: () => 0, vLineWidth: () => 0 }
+			}] : []),
+			{ text: '\n' },
+
+			// Documents à apporter
+			{ text: 'DOCUMENTS À APPORTER AU RETRAIT', style: 'section_label' },
+			{
+				ul: docsRequis,
+				style: 'docs_list',
+				margin: [10, 4, 0, 12]
+			},
+
+			// Instructions
+			{
+				fillColor: '#f8fafc',
+				table: {
+					widths: ['*'],
+					body: [[{
+						stack: [
+							{ text: '📋 PROCHAINE ÉTAPE', style: 'next_title' },
+							{ text: nextStep, style: 'next_body' }
+						],
+						margin: [12, 10, 12, 10]
+					}]]
+				},
+				layout: { hLineWidth: () => 0, vLineWidth: () => 0 }
+			},
+			{ text: '\n' },
+
+			// Historique abrégé
+			...(lastActions.length > 0 ? [
+				{ text: 'HISTORIQUE RÉCENT', style: 'section_label' },
+				{
+					style: 'tableStyle',
+					table: {
+						widths: [80, 100, '*'],
+						body: [
+							[{ text: 'Date', style: 'tableHeader' }, { text: 'Statut', style: 'tableHeader' }, { text: 'Note', style: 'tableHeader' }],
+							...lastActions
+						]
+					}
+				},
+				{ text: '\n' }
+			] : []),
+
+			// Footer info
+			{ canvas: [{ type: 'line', x1: 0, y1: 0, x2: 505, y2: 0, lineWidth: 1, lineColor: '#e5e7eb' }] },
+			{ text: '\n' },
+			{
+				columns: [
+					{
+						stack: [
+							{ text: `${commune.nom}`, style: 'footer_commune' },
+							{ text: commune.adresse, style: 'footer_info' },
+							{ text: `Tél. : ${commune.telephone}`, style: 'footer_info' }
+						]
+					},
+					{
+						stack: [
+							{ text: 'Vérification en ligne', style: 'footer_commune', alignment: 'right' },
+							{ text: 'Ce document est un récapitulatif à titre informatif.', style: 'footer_info', alignment: 'right' },
+							{ text: 'Il ne constitue pas l\'acte officiel.', style: 'footer_info', alignment: 'right' }
+						]
+					}
+				]
+			}
+		],
+		styles: {
+			...BASE_STYLES,
+			titre_suivi:    { fontSize: 16, bold: true, color: '#111827', margin: [0, 0, 0, 4] },
+			ref_suivi:      { fontSize: 11, color: '#009A44', bold: true, fontFamily: 'Courier' },
+			date_gen:       { fontSize: 8, color: '#9ca3af', margin: [0, 2, 0, 0] },
+			statut_badge:   { fontSize: 11, bold: true, margin: [0, 4, 0, 0] },
+			section_label:  { fontSize: 9, bold: true, color: '#6b7280', letterSpacing: 1, margin: [0, 0, 0, 6] },
+			tbl_key:        { fontSize: 9, color: '#9ca3af' },
+			tbl_val:        { fontSize: 10, color: '#111827', bold: true },
+			info_table:     { margin: [0, 0, 0, 0] },
+			pay_ok:         { fontSize: 11, bold: true, color: '#059669' },
+			pay_pending:    { fontSize: 11, bold: true, color: '#d97706' },
+			pay_amount:     { fontSize: 13, bold: true, color: '#111827' },
+			pay_ref:        { fontSize: 8, color: '#6b7280', italics: true, margin: [0, 2, 0, 0] },
+			docs_list:      { fontSize: 10, color: '#374151', lineHeight: 1.5 },
+			next_title:     { fontSize: 10, bold: true, color: '#1e40af', margin: [0, 0, 0, 4] },
+			next_body:      { fontSize: 10, color: '#374151', lineHeight: 1.5 },
+			hist_date:      { fontSize: 9, color: '#6b7280' },
+			hist_statut:    { fontSize: 9, bold: true, color: '#374151' },
+			hist_note:      { fontSize: 9, color: '#6b7280', italics: true },
+			footer_commune: { fontSize: 9, bold: true, color: '#374151' },
+			footer_info:    { fontSize: 8, color: '#9ca3af', margin: [0, 1, 0, 0] }
+		},
+		defaultStyle: { font: 'Roboto' }
+	};
+
+	const blob = await new Promise((resolve) => pdfMake.createPdf(docDefinition).getBlob(resolve));
+	triggerDownload(blob, `suivi-${demande.id}.pdf`);
 }
