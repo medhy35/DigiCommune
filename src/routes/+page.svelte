@@ -7,14 +7,18 @@
 	let searching = false;
 	let searchError = '';
 	let modules = {};
+	let globalSettings = {};
 
 	$: commune = $communeStore;
+	$: whatsappActif  = globalSettings.whatsapp_actif !== false;
+	$: slaHeures      = globalSettings.sla_heures_defaut ?? 48;
 
 	onMount(async () => {
 		const res = await fetch('/api/settings?role=global');
 		if (res.ok) {
 			const data = await res.json();
-			modules = data.settings?.modules || {};
+			globalSettings = data.settings || {};
+			modules = globalSettings.modules || {};
 		}
 	});
 
@@ -134,7 +138,7 @@
 			</div>
 			<h1 class="font-syne font-bold text-3xl sm:text-5xl leading-tight mb-4">
 				Vos actes civils<br>en ligne,<br>
-				<span class="text-accent-300">livrés en 24h</span>
+				<span class="text-accent-300">livrés en {slaHeures}h</span>
 			</h1>
 			<p class="text-lg text-primary-100 mb-8 max-w-lg">
 				Demandez votre acte de naissance, de mariage ou de décès depuis chez vous. Nos agents traitent votre dossier et vous contactent rapidement.
@@ -269,20 +273,30 @@
 
 <!-- INFO SECTION -->
 <section class="max-w-6xl mx-auto px-4 sm:px-6 py-16">
-	<div class="grid sm:grid-cols-3 gap-8">
-		{#each [
-			{ icon: '⚡', title: 'Traitement rapide', desc: 'Vos demandes sont traitées en moins de 24 heures par nos agents assermentés.' },
-			{ icon: '📱', title: 'Livraison WhatsApp', desc: 'Recevez votre acte en PDF directement sur votre téléphone via WhatsApp.' },
-			{ icon: '🔒', title: 'Démarche sécurisée', desc: 'Vos données personnelles sont protégées et traitées de manière confidentielle.' }
-		] as item}
+	<div class="grid sm:grid-cols-{whatsappActif ? 3 : 2} gap-8">
+		<div class="flex gap-4">
+			<div class="w-12 h-12 bg-primary-50 rounded-xl flex items-center justify-center text-xl flex-shrink-0">⚡</div>
+			<div>
+				<h3 class="font-syne font-semibold text-gray-800 mb-1">Traitement rapide</h3>
+				<p class="text-sm text-gray-500 leading-relaxed">Vos demandes sont traitées en moins de {slaHeures} heures par nos agents assermentés.</p>
+			</div>
+		</div>
+		{#if whatsappActif}
 			<div class="flex gap-4">
-				<div class="w-12 h-12 bg-primary-50 rounded-xl flex items-center justify-center text-xl flex-shrink-0">{item.icon}</div>
+				<div class="w-12 h-12 bg-primary-50 rounded-xl flex items-center justify-center text-xl flex-shrink-0">📱</div>
 				<div>
-					<h3 class="font-syne font-semibold text-gray-800 mb-1">{item.title}</h3>
-					<p class="text-sm text-gray-500 leading-relaxed">{item.desc}</p>
+					<h3 class="font-syne font-semibold text-gray-800 mb-1">Livraison WhatsApp</h3>
+					<p class="text-sm text-gray-500 leading-relaxed">Recevez votre acte en PDF directement sur votre téléphone via WhatsApp.</p>
 				</div>
 			</div>
-		{/each}
+		{/if}
+		<div class="flex gap-4">
+			<div class="w-12 h-12 bg-primary-50 rounded-xl flex items-center justify-center text-xl flex-shrink-0">🔒</div>
+			<div>
+				<h3 class="font-syne font-semibold text-gray-800 mb-1">Démarche sécurisée</h3>
+				<p class="text-sm text-gray-500 leading-relaxed">Vos données personnelles sont protégées et traitées de manière confidentielle.</p>
+			</div>
+		</div>
 	</div>
 </section>
 
@@ -319,14 +333,14 @@
 				<h4 class="font-syne font-semibold text-white mb-3">Informations</h4>
 				<ul class="space-y-1.5 text-sm">
 					<li>Service disponible 24h/24</li>
-					<li>Réponse sous 24 heures</li>
+					<li>Réponse sous {slaHeures} heures</li>
 					{#if commune?.horaires_ouverture}<li>{commune.horaires_ouverture}</li>{/if}
 					<li>Gratuit pour le citoyen</li>
 				</ul>
 			</div>
 		</div>
 		<div class="border-t border-gray-700 mt-8 pt-6 text-center text-xs text-gray-500">
-			© 2025 CiviCI – Portail de gestion municipal de la Côte d'Ivoire. Tous droits réservés.
+			© {new Date().getFullYear()} {commune?.nom_app || 'CiviCI'} – Portail de gestion municipal de la Côte d'Ivoire. Tous droits réservés.
 		</div>
 	</div>
 </footer>
