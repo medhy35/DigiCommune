@@ -86,7 +86,7 @@
 	}
 
 	async function deleteTemplate(type_acte) {
-		await fetch(\`/api/templates?type=\${type_acte}\`, { method: 'DELETE' });
+		await fetch(`/api/templates?type=${type_acte}`, { method: 'DELETE' });
 		await loadTemplates();
 	}
 
