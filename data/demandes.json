@@ -1,0 +1,309 @@
+[
+  {
+    "id": "CI-2025-0001",
+    "created_at": "2025-01-08T08:30:00Z",
+    "updated_at": "2025-01-09T10:15:00Z",
+    "statut": "traitee",
+    "type_acte": "naissance",
+    "concernant": "enfant",
+    "demandeur": {
+      "nom": "Koné",
+      "prenom": "Aminata",
+      "date_naissance": "1990-05-20",
+      "cni": "CI-12345678",
+      "telephone": "+225 07 12 34 56"
+    },
+    "personne_concernee": {
+      "nom": "Koné",
+      "prenom": "Boubacar",
+      "date_naissance": "2020-03-10",
+      "numero_registre": "REG-2020-456"
+    },
+    "copies": 2,
+    "mode_reception": "whatsapp",
+    "agent_id": "agent_001",
+    "escalade": null,
+    "historique": [
+      { "statut": "recue", "date": "2025-01-08T08:30:00Z", "note": "Demande soumise en ligne", "par": "citoyen" },
+      { "statut": "en_cours", "date": "2025-01-08T14:00:00Z", "note": "Dossier pris en charge", "par": "agent_001" },
+      { "statut": "traitee", "date": "2025-01-09T10:15:00Z", "note": "Acte généré et envoyé par WhatsApp", "par": "agent_001" }
+    ]
+  },
+  {
+    "id": "CI-2025-0002",
+    "created_at": "2025-01-10T09:00:00Z",
+    "updated_at": "2025-01-10T16:30:00Z",
+    "statut": "en_cours",
+    "type_acte": "mariage",
+    "concernant": "soi-meme",
+    "demandeur": {
+      "nom": "Touré",
+      "prenom": "Ibrahim",
+      "date_naissance": "1985-11-03",
+      "cni": "CI-87654321",
+      "telephone": "+225 05 87 65 43"
+    },
+    "personne_concernee": {
+      "nom": "Touré",
+      "prenom": "Ibrahim",
+      "date_naissance": "1985-11-03",
+      "numero_registre": ""
+    },
+    "copies": 1,
+    "mode_reception": "retrait",
+    "agent_id": "agent_001",
+    "escalade": null,
+    "historique": [
+      { "statut": "recue", "date": "2025-01-10T09:00:00Z", "note": "Demande soumise en ligne", "par": "citoyen" },
+      { "statut": "en_cours", "date": "2025-01-10T16:30:00Z", "note": "Recherche dans les registres en cours", "par": "agent_001" }
+    ]
+  },
+  {
+    "id": "CI-2025-0003",
+    "created_at": "2025-01-12T11:15:00Z",
+    "updated_at": "2025-01-12T11:15:00Z",
+    "statut": "recue",
+    "type_acte": "deces",
+    "concernant": "parent",
+    "demandeur": {
+      "nom": "Diallo",
+      "prenom": "Fatoumata",
+      "date_naissance": "1975-07-14",
+      "cni": "",
+      "telephone": "+225 01 23 45 67"
+    },
+    "personne_concernee": {
+      "nom": "Diallo",
+      "prenom": "Boubacar Sékou",
+      "date_naissance": "1945-02-28",
+      "numero_registre": ""
+    },
+    "copies": 3,
+    "mode_reception": "retrait",
+    "agent_id": "agent_001",
+    "escalade": null,
+    "historique": [
+      { "statut": "recue", "date": "2025-01-12T11:15:00Z", "note": "Demande soumise en ligne", "par": "citoyen" }
+    ]
+  },
+  {
+    "id": "CI-2025-0004",
+    "created_at": "2025-01-13T07:45:00Z",
+    "updated_at": "2025-01-14T09:00:00Z",
+    "statut": "disponible",
+    "type_acte": "naissance",
+    "concernant": "soi-meme",
+    "demandeur": {
+      "nom": "Ouattara",
+      "prenom": "Seydou",
+      "date_naissance": "1992-09-25",
+      "cni": "CI-11223344",
+      "telephone": "+225 07 98 76 54"
+    },
+    "personne_concernee": {
+      "nom": "Ouattara",
+      "prenom": "Seydou",
+      "date_naissance": "1992-09-25",
+      "numero_registre": "REG-1992-112"
+    },
+    "copies": 1,
+    "mode_reception": "retrait",
+    "agent_id": "agent_002",
+    "escalade": null,
+    "historique": [
+      { "statut": "recue", "date": "2025-01-13T07:45:00Z", "note": "Demande soumise en ligne", "par": "citoyen" },
+      { "statut": "en_cours", "date": "2025-01-13T11:00:00Z", "note": "Dossier en cours de traitement", "par": "agent_002" },
+      { "statut": "traitee", "date": "2025-01-13T16:00:00Z", "note": "Acte prêt", "par": "agent_002" },
+      { "statut": "disponible", "date": "2025-01-14T09:00:00Z", "note": "Disponible en mairie pour retrait", "par": "agent_002" }
+    ]
+  },
+  {
+    "id": "CI-2025-0005",
+    "created_at": "2025-01-14T10:00:00Z",
+    "updated_at": "2025-01-15T14:30:00Z",
+    "statut": "traitee",
+    "type_acte": "mariage",
+    "concernant": "soi-meme",
+    "demandeur": {
+      "nom": "Yao",
+      "prenom": "Marie-Claire",
+      "date_naissance": "1988-04-17",
+      "cni": "CI-55443322",
+      "telephone": "+225 05 44 33 22"
+    },
+    "personne_concernee": {
+      "nom": "Yao",
+      "prenom": "Marie-Claire",
+      "date_naissance": "1988-04-17",
+      "numero_registre": "REG-2015-789"
+    },
+    "copies": 2,
+    "mode_reception": "whatsapp",
+    "agent_id": "agent_001",
+    "escalade": null,
+    "historique": [
+      { "statut": "recue", "date": "2025-01-14T10:00:00Z", "note": "Demande soumise en ligne", "par": "citoyen" },
+      { "statut": "en_cours", "date": "2025-01-14T14:00:00Z", "note": "Vérification des registres", "par": "agent_001" },
+      { "statut": "traitee", "date": "2025-01-15T14:30:00Z", "note": "Copie envoyée par WhatsApp", "par": "agent_001" }
+    ]
+  },
+  {
+    "id": "CI-2025-0006",
+    "created_at": "2025-01-15T08:00:00Z",
+    "updated_at": "2025-01-16T11:00:00Z",
+    "statut": "en_cours",
+    "type_acte": "deces",
+    "concernant": "parent",
+    "demandeur": {
+      "nom": "Bamba",
+      "prenom": "Mamadou",
+      "date_naissance": "1970-12-01",
+      "cni": "CI-66778899",
+      "telephone": "+225 07 66 77 88"
+    },
+    "personne_concernee": {
+      "nom": "Bamba",
+      "prenom": "Adama",
+      "date_naissance": "1940-06-15",
+      "numero_registre": ""
+    },
+    "copies": 4,
+    "mode_reception": "retrait",
+    "agent_id": "agent_002",
+    "escalade": {
+      "level": "superviseur",
+      "motif": "Introuvable dans les registres de la décennie 1970-1980. Acte potentiellement enregistré dans une autre commune.",
+      "date": "2025-01-16T11:00:00Z",
+      "resolu": false,
+      "par": "agent_002"
+    },
+    "historique": [
+      { "statut": "recue", "date": "2025-01-15T08:00:00Z", "note": "Demande soumise en ligne", "par": "citoyen" },
+      { "statut": "en_cours", "date": "2025-01-15T10:00:00Z", "note": "Recherche dans les registres", "par": "agent_002" },
+      { "statut": "en_cours", "date": "2025-01-16T11:00:00Z", "note": "Escalade superviseur : acte introuvable dans nos registres", "par": "agent_002" }
+    ]
+  },
+  {
+    "id": "CI-2025-0007",
+    "created_at": "2025-01-16T14:20:00Z",
+    "updated_at": "2025-01-16T14:20:00Z",
+    "statut": "recue",
+    "type_acte": "naissance",
+    "concernant": "enfant",
+    "demandeur": {
+      "nom": "Mensah",
+      "prenom": "Adjoa",
+      "date_naissance": "1995-08-30",
+      "cni": "",
+      "telephone": "+225 01 55 66 77"
+    },
+    "personne_concernee": {
+      "nom": "Mensah",
+      "prenom": "Kwame Junior",
+      "date_naissance": "2023-11-05",
+      "numero_registre": ""
+    },
+    "copies": 2,
+    "mode_reception": "whatsapp",
+    "agent_id": "agent_001",
+    "escalade": null,
+    "historique": [
+      { "statut": "recue", "date": "2025-01-16T14:20:00Z", "note": "Demande soumise en ligne", "par": "citoyen" }
+    ]
+  },
+  {
+    "id": "CI-2025-0008",
+    "created_at": "2025-01-10T13:00:00Z",
+    "updated_at": "2025-01-17T09:30:00Z",
+    "statut": "en_cours",
+    "type_acte": "mariage",
+    "concernant": "soi-meme",
+    "demandeur": {
+      "nom": "Aka",
+      "prenom": "Kouassi",
+      "date_naissance": "1980-03-22",
+      "cni": "CI-99887766",
+      "telephone": "+225 05 99 88 77"
+    },
+    "personne_concernee": {
+      "nom": "Aka",
+      "prenom": "Kouassi",
+      "date_naissance": "1980-03-22",
+      "numero_registre": "REG-2008-333"
+    },
+    "copies": 1,
+    "mode_reception": "retrait",
+    "agent_id": "agent_002",
+    "escalade": {
+      "level": "maire",
+      "motif": "Incohérence entre les informations déclarées et le registre d'état civil. Suspicion de falsification de document. Nécessite une décision officielle.",
+      "date": "2025-01-17T09:30:00Z",
+      "resolu": false,
+      "par": "sup_001"
+    },
+    "historique": [
+      { "statut": "recue", "date": "2025-01-10T13:00:00Z", "note": "Demande soumise en ligne", "par": "citoyen" },
+      { "statut": "en_cours", "date": "2025-01-10T15:00:00Z", "note": "Vérification des informations", "par": "agent_002" },
+      { "statut": "en_cours", "date": "2025-01-14T10:00:00Z", "note": "Escalade superviseur : incohérences détectées", "par": "agent_002" },
+      { "statut": "en_cours", "date": "2025-01-17T09:30:00Z", "note": "Escalade maire : décision officielle requise", "par": "sup_001" }
+    ]
+  },
+  {
+    "id": "CI-2025-0009",
+    "created_at": "2025-01-11T09:30:00Z",
+    "updated_at": "2025-01-12T16:00:00Z",
+    "statut": "traitee",
+    "type_acte": "deces",
+    "concernant": "parent",
+    "demandeur": {
+      "nom": "Gbagbo",
+      "prenom": "Nathalie",
+      "date_naissance": "1982-06-18",
+      "cni": "CI-33221100",
+      "telephone": "+225 07 33 22 11"
+    },
+    "personne_concernee": {
+      "nom": "Gbagbo",
+      "prenom": "Rodrigue",
+      "date_naissance": "1955-09-12",
+      "numero_registre": "REG-2022-001"
+    },
+    "copies": 3,
+    "mode_reception": "retrait",
+    "agent_id": "agent_001",
+    "escalade": null,
+    "historique": [
+      { "statut": "recue", "date": "2025-01-11T09:30:00Z", "note": "Demande soumise en ligne", "par": "citoyen" },
+      { "statut": "en_cours", "date": "2025-01-11T14:00:00Z", "note": "Traitement en cours", "par": "agent_001" },
+      { "statut": "traitee", "date": "2025-01-12T16:00:00Z", "note": "Actes prêts pour retrait en mairie", "par": "agent_001" }
+    ]
+  },
+  {
+    "id": "CI-2025-0010",
+    "created_at": "2025-01-17T07:00:00Z",
+    "updated_at": "2025-01-17T07:00:00Z",
+    "statut": "recue",
+    "type_acte": "naissance",
+    "concernant": "soi-meme",
+    "demandeur": {
+      "nom": "Coulibaly",
+      "prenom": "Dramane",
+      "date_naissance": "1998-01-15",
+      "cni": "",
+      "telephone": "+225 01 78 90 12"
+    },
+    "personne_concernee": {
+      "nom": "Coulibaly",
+      "prenom": "Dramane",
+      "date_naissance": "1998-01-15",
+      "numero_registre": ""
+    },
+    "copies": 1,
+    "mode_reception": "whatsapp",
+    "agent_id": "agent_002",
+    "escalade": null,
+    "historique": [
+      { "statut": "recue", "date": "2025-01-17T07:00:00Z", "note": "Demande soumise en ligne", "par": "citoyen" }
+    ]
+  }
+]

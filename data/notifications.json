@@ -1,0 +1,65 @@
+[
+  {
+    "id": "notif_001",
+    "role": "agent",
+    "type": "nouvelle_demande",
+    "message": "Nouvelle demande — Aminata Koné · Acte de naissance",
+    "demande_id": "CI-2025-0001",
+    "read": true,
+    "created_at": "2025-01-08T08:30:00Z"
+  },
+  {
+    "id": "notif_002",
+    "role": "agent",
+    "type": "nouvelle_demande",
+    "message": "Nouvelle demande — Ibrahim Sangaré · Acte de mariage",
+    "demande_id": "CI-2025-0003",
+    "read": true,
+    "created_at": "2025-01-12T09:45:00Z"
+  },
+  {
+    "id": "notif_003",
+    "role": "superviseur",
+    "type": "escalade",
+    "message": "Escalade reçue — dossier CI-2025-0006 nécessite votre intervention",
+    "demande_id": "CI-2025-0006",
+    "read": false,
+    "created_at": "2025-01-18T11:20:00Z"
+  },
+  {
+    "id": "notif_004",
+    "role": "maire",
+    "type": "escalade_critique",
+    "message": "Cas critique — dossier CI-2025-0008 escaladé au Maire pour décision",
+    "demande_id": "CI-2025-0008",
+    "read": false,
+    "created_at": "2025-01-22T14:00:00Z"
+  },
+  {
+    "id": "notif_005",
+    "role": "agent",
+    "type": "nouvelle_demande",
+    "message": "Nouvelle demande — Fatoumata Diallo · Acte de naissance",
+    "demande_id": "CI-2025-0005",
+    "read": false,
+    "created_at": "2025-01-17T08:10:00Z"
+  },
+  {
+    "id": "notif_006",
+    "role": "superviseur",
+    "type": "info",
+    "message": "5 nouvelles demandes traitées cette semaine",
+    "demande_id": null,
+    "read": false,
+    "created_at": "2025-01-24T09:00:00Z"
+  },
+  {
+    "id": "notif_007",
+    "role": "maire",
+    "type": "info",
+    "message": "Rapport hebdomadaire disponible — 10 dossiers traités",
+    "demande_id": null,
+    "read": true,
+    "created_at": "2025-01-20T08:00:00Z"
+  }
+]
