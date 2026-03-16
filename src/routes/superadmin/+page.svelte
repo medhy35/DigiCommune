@@ -112,7 +112,8 @@
 		{ id: 'params',    label: 'Paramètres',      icon: '⚙️' },
 		{ id: 'locks',     label: 'Verrouillages',   icon: '🔒' },
 		{ id: 'modeles',   label: 'Modèles docs',    icon: '📄' },
-		{ id: 'journal',   label: 'Journal d\'audit',icon: '📜' }
+		{ id: 'journal',   label: 'Journal d\'audit',icon: '📜' },
+		{ id: 'securite',  label: 'Sécurité',        icon: '🛡️' }
 	];
 
 	// ── Templates / Modèles de documents ─────────────────────
@@ -160,6 +161,79 @@
 		await fetch(`/api/templates?type=${type_acte}`, { method: 'DELETE' });
 		await loadTemplates();
 	}
+
+	// ── Journal de sécurité ──────────────────────────────────
+	let secLog = [];
+	let secLoading = false;
+	let secSearch = '';
+	let secTypeFilter = '';
+	let secClearConfirm = false;
+
+	const SEC_TYPE_LABELS = {
+		connexion:            'Connexion',
+		deconnexion:          'Déconnexion',
+		module_toggle:        'Module',
+		settings_change:      'Paramètres globaux',
+		role_settings_change: 'Paramètres rôle',
+		param_lock:           'Verrouillage',
+		param_unlock:         'Déverrouillage',
+		user_add:             'Ajout utilisateur',
+		user_update:          'Modif utilisateur',
+		user_toggle:          'Activation utilisateur',
+		template_upload:      'Modèle chargé',
+		template_delete:      'Modèle supprimé',
+		identite_change:      'Identité modifiée',
+		journal_efface:       'Journal effacé'
+	};
+	const SEC_TYPE_COLORS = {
+		connexion:            'bg-green-100 text-green-700',
+		deconnexion:          'bg-gray-100 text-gray-600',
+		module_toggle:        'bg-blue-100 text-blue-700',
+		settings_change:      'bg-indigo-100 text-indigo-700',
+		role_settings_change: 'bg-violet-100 text-violet-700',
+		param_lock:           'bg-orange-100 text-orange-700',
+		param_unlock:         'bg-amber-100 text-amber-700',
+		user_add:             'bg-teal-100 text-teal-700',
+		user_update:          'bg-cyan-100 text-cyan-700',
+		user_toggle:          'bg-sky-100 text-sky-700',
+		template_upload:      'bg-purple-100 text-purple-700',
+		template_delete:      'bg-red-100 text-red-600',
+		identite_change:      'bg-primary-100 text-primary-700',
+		journal_efface:       'bg-red-200 text-red-800'
+	};
+	const SEC_ACTEUR_ICONS = {
+		superadmin:  '🔐',
+		agent:       '👩‍💼',
+		superviseur: '👔',
+		maire:       '🏛️'
+	};
+
+	async function loadSecLog() {
+		secLoading = true;
+		const res = await fetch('/api/security-log?limit=500');
+		if (res.ok) {
+			const data = await res.json();
+			secLog = data.entries;
+		}
+		secLoading = false;
+	}
+
+	async function clearSecLog() {
+		await fetch('/api/security-log', { method: 'DELETE' });
+		await loadSecLog();
+		secClearConfirm = false;
+		showToast('Journal de sécurité effacé');
+	}
+
+	$: filteredSecLog = secLog.filter(e => {
+		const matchType = !secTypeFilter || e.type === secTypeFilter;
+		const q = secSearch.toLowerCase();
+		const matchSearch = !q ||
+			e.acteur.toLowerCase().includes(q) ||
+			e.type.toLowerCase().includes(q) ||
+			JSON.stringify(e.details).toLowerCase().includes(q);
+		return matchType && matchSearch;
+	});
 
 	// ── Journal d'audit ───────────────────────────────────────
 	let auditLog = [];
@@ -385,7 +459,7 @@
 		<div class="flex gap-2 mb-8 overflow-x-auto pb-1">
 			{#each TABS as tab}
 				<button
-					on:click={() => { activeTab = tab.id; if (tab.id === 'journal' && !auditLog.length) loadAudit(); if (tab.id === 'modeles' && !templates.length) loadTemplates(); }}
+					on:click={() => { activeTab = tab.id; if (tab.id === 'journal' && !auditLog.length) loadAudit(); if (tab.id === 'modeles' && !templates.length) loadTemplates(); if (tab.id === 'securite') loadSecLog(); }}
 					class="flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm whitespace-nowrap transition-all
 						{activeTab === tab.id ? 'bg-gray-900 text-white shadow-md' : 'bg-white text-gray-600 border border-gray-200 hover:border-gray-400'}"
 				>
@@ -1104,6 +1178,135 @@
 						</table>
 					</div>
 				{/if}
+			</div>
+		</div>
+		{/if}
+
+		<!-- ── TAB: SÉCURITÉ ──────────────────────────────────── -->
+		{#if activeTab === 'securite'}
+		<div class="space-y-6">
+			<div class="flex items-center justify-between">
+				<div>
+					<h2 class="font-syne font-bold text-xl text-gray-800">Journal de sécurité</h2>
+					<p class="text-sm text-gray-500 mt-0.5">Historique de toutes les actions sensibles : connexions, modifications, verrouillages…</p>
+				</div>
+				<div class="flex items-center gap-2">
+					<button on:click={loadSecLog} class="px-3 py-1.5 text-xs rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium transition-colors flex items-center gap-1">
+						🔄 Actualiser
+					</button>
+					{#if !secClearConfirm}
+						<button on:click={() => secClearConfirm = true} class="px-3 py-1.5 text-xs rounded-lg bg-red-50 hover:bg-red-100 text-red-600 font-medium transition-colors flex items-center gap-1">
+							🗑️ Effacer le journal
+						</button>
+					{:else}
+						<span class="text-xs text-red-600 font-medium">Confirmer ?</span>
+						<button on:click={clearSecLog} class="px-3 py-1.5 text-xs rounded-lg bg-red-500 text-white font-medium hover:bg-red-600 transition-colors">Oui, effacer</button>
+						<button on:click={() => secClearConfirm = false} class="px-3 py-1.5 text-xs rounded-lg bg-gray-200 text-gray-700 font-medium hover:bg-gray-300 transition-colors">Annuler</button>
+					{/if}
+				</div>
+			</div>
+
+			<!-- Filtres -->
+			<div class="bg-white rounded-2xl border border-gray-100 p-4 flex flex-wrap gap-3">
+				<input
+					bind:value={secSearch}
+					type="search"
+					placeholder="Rechercher…"
+					class="flex-1 min-w-48 text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-300"
+				/>
+				<select bind:value={secTypeFilter} class="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-300">
+					<option value="">Tous les types</option>
+					{#each Object.entries(SEC_TYPE_LABELS) as [k, v]}
+						<option value={k}>{v}</option>
+					{/each}
+				</select>
+				<span class="text-xs text-gray-400 self-center">{filteredSecLog.length} entrée{filteredSecLog.length !== 1 ? 's' : ''}</span>
+			</div>
+
+			<!-- Tableau -->
+			<div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+				{#if secLoading}
+					<div class="flex items-center justify-center py-16 text-gray-400">
+						<svg class="w-6 h-6 animate-spin mr-2" fill="none" viewBox="0 0 24 24">
+							<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+							<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+						</svg>
+						Chargement…
+					</div>
+				{:else if filteredSecLog.length === 0}
+					<div class="text-center py-20 text-gray-400">
+						<p class="text-5xl mb-3">🛡️</p>
+						<p class="font-medium">Aucune entrée dans le journal</p>
+						<p class="text-sm mt-1">Les connexions, modifications et actions sensibles apparaîtront ici</p>
+					</div>
+				{:else}
+					<div class="overflow-x-auto">
+						<table class="w-full text-sm">
+							<thead class="bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+								<tr>
+									<th class="text-left px-4 py-3 w-36">Date & heure</th>
+									<th class="text-left px-4 py-3">Type</th>
+									<th class="text-left px-4 py-3">Acteur</th>
+									<th class="text-left px-4 py-3">Détails</th>
+								</tr>
+							</thead>
+							<tbody class="divide-y divide-gray-50">
+								{#each filteredSecLog as entry}
+									<tr class="hover:bg-gray-50 transition-colors">
+										<td class="px-4 py-3 text-xs text-gray-500 whitespace-nowrap font-mono">
+											{new Date(entry.date).toLocaleString('fr-FR', { day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit', second:'2-digit' })}
+										</td>
+										<td class="px-4 py-3">
+											<span class="text-xs font-medium px-2 py-0.5 rounded-full {SEC_TYPE_COLORS[entry.type] || 'bg-gray-100 text-gray-600'}">
+												{SEC_TYPE_LABELS[entry.type] || entry.type}
+											</span>
+										</td>
+										<td class="px-4 py-3">
+											<span class="flex items-center gap-1 text-xs font-medium text-gray-700">
+												{SEC_ACTEUR_ICONS[entry.acteur] || '👤'} {entry.acteur}
+											</span>
+										</td>
+										<td class="px-4 py-3 text-xs text-gray-500 max-w-sm">
+											{#if entry.type === 'connexion' || entry.type === 'deconnexion'}
+												<span class="text-gray-600">{entry.type === 'connexion' ? '→ Accès au backoffice' : '← Déconnexion'}</span>
+											{:else if entry.type === 'module_toggle'}
+												<span>Module <strong class="text-gray-700">{entry.details?.module}</strong> : {entry.details?.enabled ? '✅ activé' : '❌ désactivé'}</span>
+											{:else if entry.type === 'param_lock' || entry.type === 'param_unlock'}
+												<span>Param <code class="bg-gray-100 px-1 rounded">{entry.details?.param}</code></span>
+											{:else if entry.type === 'user_add'}
+												<span>Ajout <strong class="text-gray-700">{entry.details?.nom}</strong> ({entry.details?.role}) — {entry.details?.email}</span>
+											{:else if entry.type === 'user_toggle'}
+												<span><strong class="text-gray-700">{entry.details?.nom}</strong> → {entry.details?.actif ? '✅ activé' : '⏸️ désactivé'}</span>
+											{:else if entry.type === 'user_update'}
+												<span>Modif <code class="bg-gray-100 px-1 rounded">{entry.details?.userId}</code> — champs : {(entry.details?.champs || []).join(', ')}</span>
+											{:else if entry.type === 'settings_change' || entry.type === 'role_settings_change'}
+												<span>{entry.details?.role ? `[${entry.details.role}] ` : ''}Champs : {(entry.details?.champs || []).join(', ')}</span>
+											{:else if entry.type === 'template_upload'}
+												<span>📄 {entry.details?.nom_fichier} — {entry.details?.type_acte}</span>
+											{:else if entry.type === 'template_delete'}
+												<span>🗑️ {entry.details?.nom_fichier || entry.details?.type_acte}</span>
+											{:else if entry.type === 'identite_change'}
+												<span>Champs : {(entry.details?.champs || []).join(', ')}</span>
+											{:else}
+												<span class="text-gray-400 font-mono">{JSON.stringify(entry.details)}</span>
+											{/if}
+										</td>
+									</tr>
+								{/each}
+							</tbody>
+						</table>
+					</div>
+				{/if}
+			</div>
+
+			<!-- Légende des types -->
+			<div class="bg-white rounded-2xl border border-gray-100 p-5">
+				<h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Légende des événements</h3>
+				<div class="flex flex-wrap gap-2">
+					{#each Object.entries(SEC_TYPE_LABELS) as [k, v]}
+						<span class="text-xs px-2 py-1 rounded-full font-medium {SEC_TYPE_COLORS[k] || 'bg-gray-100 text-gray-600'}">{v}</span>
+					{/each}
+				</div>
 			</div>
 		</div>
 		{/if}

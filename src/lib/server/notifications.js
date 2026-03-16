@@ -1,19 +1,6 @@
-import { readFileSync, writeFileSync } from 'fs';
-import { join } from 'path';
+import { readNotifications, writeNotifications } from '$lib/server/data.js';
 
-const DATA_FILE = join(process.cwd(), 'data', 'notifications.json');
-
-export function readNotifications() {
-	try {
-		return JSON.parse(readFileSync(DATA_FILE, 'utf-8'));
-	} catch {
-		return [];
-	}
-}
-
-export function writeNotifications(notifications) {
-	writeFileSync(DATA_FILE, JSON.stringify(notifications, null, 2), 'utf-8');
-}
+export { readNotifications, writeNotifications };
 
 export function createNotification(role, type, message, demande_id) {
 	const all = readNotifications();

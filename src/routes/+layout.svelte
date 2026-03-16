@@ -2,24 +2,28 @@
 	import '../app.css';
 	import Toast from '$lib/components/Toast.svelte';
 	import { onMount } from 'svelte';
-	import { commune as communeStore } from '$lib/stores/commune.js';
+	import { commune } from '$lib/stores/commune.js';
+	import { globalSettings } from '$lib/stores/settings.js';
 
 	onMount(async () => {
-		const res = await fetch('/api/commune');
-		if (res.ok) {
-			const data = await res.json();
-			communeStore.set(data);
+		const [communeRes, settingsRes] = await Promise.all([
+			fetch('/api/commune'),
+			fetch('/api/settings?role=global')
+		]);
+		if (communeRes.ok) {
+			const data = await communeRes.json();
+			commune.set(data);
 			applyTheme(data.couleur_primaire);
+		}
+		if (settingsRes.ok) {
+			const data = await settingsRes.json();
+			globalSettings.set(data.settings || {});
 		}
 	});
 
 	function hexToRgb(hex) {
 		const h = hex.replace('#', '');
-		return [
-			parseInt(h.slice(0, 2), 16),
-			parseInt(h.slice(2, 4), 16),
-			parseInt(h.slice(4, 6), 16)
-		];
+		return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
 	}
 
 	function blend(hex, target, amount) {
@@ -32,8 +36,7 @@
 
 	function applyTheme(hex) {
 		if (!hex || typeof document === 'undefined') return;
-		const white = [255, 255, 255];
-		const black = [0, 0, 0];
+		const white = [255, 255, 255], black = [0, 0, 0];
 		const root = document.documentElement;
 		root.style.setProperty('--color-p50',  blend(hex, white, 0.92));
 		root.style.setProperty('--color-p100', blend(hex, white, 0.82));

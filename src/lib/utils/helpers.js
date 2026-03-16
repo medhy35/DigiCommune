@@ -74,6 +74,30 @@ export const MODE_RECEPTION_LABELS = {
 	whatsapp: 'Copie PDF par WhatsApp'
 };
 
+export const NOTIFICATION_ICONS = {
+	nouvelle_demande:   '📋',
+	escalade:           '⚠️',
+	escalade_critique:  '🚨',
+	remboursement:      '💰',
+	info:               'ℹ️'
+};
+
+export const DOC_TYPE_LABELS = {
+	cni:          "Pièce d'identité",
+	extrait:      'Extrait d\'acte',
+	passeport:    'Passeport',
+	justificatif: 'Justificatif',
+	autre:        'Document'
+};
+
+export const DOC_TYPE_ICONS = {
+	cni:          '🪪',
+	extrait:      '📋',
+	passeport:    '📕',
+	justificatif: '📎',
+	autre:        '📄'
+};
+
 export function formatDate(isoString) {
 	if (!isoString) return '—';
 	return new Intl.DateTimeFormat('fr-FR', {
