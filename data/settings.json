@@ -54,6 +54,15 @@
     "whatsapp_actif": true,
     "notif_agent_nouvelle_demande": true,
     "notif_agent_escalade_resolue": true,
-    "notif_superviseur_nouvelle_escalade": true
+    "notif_agent_reassignation": true,
+    "notif_superviseur_nouvelle_escalade": true,
+    "notif_maire_cas_critique": true,
+    "langue": "fr",
+    "timezone": "Africa/Abidjan",
+    "format_date": "dd/mm/yyyy",
+    "securite_session_heures": 8,
+    "theme": "light",
+    "animations": true,
+    "taille_police": "normal"
   }
 }

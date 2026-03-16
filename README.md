@@ -29,8 +29,13 @@ Permet aux citoyens de soumettre des demandes d'actes civils en ligne, et aux ag
 - **Identité** : Logo, nom de l'application, couleur principale (thème dynamique), slogan, horaires
 - **Modules** : Activation/désactivation des 13 services
 - **Utilisateurs** : Ajout, modification et désactivation des agents, superviseurs et du maire
-- **Paramètres système** : 10+ paramètres configurables (frais, SLA, délais légaux, WhatsApp, notifications…)
-- **Verrouillages** : 14 paramètres verrouillables pour empêcher leur modification par les autres rôles
+- **Paramètres système** : Langue, fuseau horaire, format de date, durée de session
+- **Paramètres lumière** : Thème (clair / sombre / auto), animations, taille de police
+- **Tarification** : Frais de copie, frais urgence, frais fixes par type de service (6 types)
+- **Traitement & délais** : SLA par défaut, délais légaux déclaration, nb max pièces jointes
+- **Notifications** : Activation par canal et par rôle (agents, superviseur, maire)
+- **Paramètres par rôle** : SLA agent, seuil escalades superviseur, période dashboard maire, notifications individuelles par rôle
+- **Verrouillages** : 19 paramètres verrouillables pour empêcher leur modification par les autres rôles
 - **Modèles de documents** : Upload de templates DOCX/ODT/PDF par type de service
 - **Journal d'audit** : Historique complet de toutes les actions sur les dossiers
 - **Journal de sécurité** : Historique des événements système (connexions, modifications, suppressions)

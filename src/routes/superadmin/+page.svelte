@@ -23,25 +23,36 @@
 
 	// Formulaire verrouillage
 	const LOCKABLE_PARAMS = [
-		{ key: 'sla_heures',                      label: 'SLA Agent (heures)',                  role: 'agent' },
-		{ key: 'seuil_escalades_alerte',           label: 'Seuil alertes escalades',             role: 'superviseur' },
-		{ key: 'periode_dashboard',                label: 'Période dashboard Maire',             role: 'maire' },
-		{ key: 'frais_copie',                      label: 'Frais copie (FCFA)',                  role: 'global' },
-		{ key: 'frais_copie_integrale',            label: 'Frais copie intégrale (FCFA)',        role: 'global' },
-		{ key: 'frais_urgence',                    label: 'Frais traitement urgent (FCFA)',      role: 'global' },
-		{ key: 'sla_heures_defaut',                label: 'SLA par défaut (heures)',             role: 'global' },
-		{ key: 'delai_declaration_naissance_jours',label: 'Délai déclaration naissance (jours)', role: 'global' },
-		{ key: 'delai_declaration_deces_jours',    label: 'Délai déclaration décès (jours)',     role: 'global' },
-		{ key: 'max_pieces_jointes',               label: 'Nb max pièces jointes',               role: 'global' },
-		{ key: 'whatsapp_actif',                   label: 'Livraison WhatsApp activée',          role: 'global' },
-		{ key: 'notif_agent_nouvelle_demande',     label: 'Notif agent : nouvelle demande',      role: 'agent' },
-		{ key: 'notif_agent_escalade_resolue',     label: 'Notif agent : escalade résolue',      role: 'agent' },
-		{ key: 'notif_superviseur_nouvelle_escalade', label: 'Notif superviseur : escalade',     role: 'superviseur' }
+		{ key: 'sla_heures',                         label: 'SLA Agent (heures)',                   role: 'agent' },
+		{ key: 'seuil_escalades_alerte',              label: 'Seuil alertes escalades',              role: 'superviseur' },
+		{ key: 'periode_dashboard',                   label: 'Période dashboard Maire',              role: 'maire' },
+		{ key: 'frais_copie',                         label: 'Frais copie (FCFA)',                   role: 'global' },
+		{ key: 'frais_copie_integrale',               label: 'Frais copie intégrale (FCFA)',         role: 'global' },
+		{ key: 'frais_urgence',                       label: 'Frais traitement urgent (FCFA)',       role: 'global' },
+		{ key: 'sla_heures_defaut',                   label: 'SLA par défaut (heures)',              role: 'global' },
+		{ key: 'delai_declaration_naissance_jours',   label: 'Délai déclaration naissance (jours)', role: 'global' },
+		{ key: 'delai_declaration_deces_jours',       label: 'Délai déclaration décès (jours)',     role: 'global' },
+		{ key: 'max_pieces_jointes',                  label: 'Nb max pièces jointes',               role: 'global' },
+		{ key: 'whatsapp_actif',                      label: 'Livraison WhatsApp activée',          role: 'global' },
+		{ key: 'notif_agent_nouvelle_demande',        label: 'Notif agent : nouvelle demande',      role: 'agent' },
+		{ key: 'notif_agent_escalade_resolue',        label: 'Notif agent : escalade résolue',      role: 'agent' },
+		{ key: 'notif_agent_reassignation',           label: 'Notif agent : réassignation',         role: 'agent' },
+		{ key: 'notif_superviseur_nouvelle_escalade', label: 'Notif superviseur : escalade',        role: 'superviseur' },
+		{ key: 'notif_maire_cas_critique',            label: 'Notif maire : cas critique',          role: 'maire' },
+		{ key: 'securite_session_heures',             label: 'Durée de session (heures)',            role: 'global' },
+		{ key: 'theme',                               label: 'Thème interface',                      role: 'global' },
+		{ key: 'taille_police',                       label: 'Taille de police',                    role: 'global' }
 	];
 
 	// Formulaire paramètres globaux éditables
 	let globalEdit = {};
 	let communeEdit = {};
+
+	// Paramètres par rôle (notifications, etc.)
+	let agentNotifs  = {};
+	let supNotifs    = {};
+	let maireEdit    = {};
+	let savingRole   = null;
 
 	// Identité / Branding
 	let identiteEdit = {};
@@ -285,8 +296,15 @@
 			settings = data.settings;
 			users = data.users;
 			globalEdit = { ...(data.settings.global || {}) };
+			globalEdit.frais_fixes = { ...(data.settings.global?.frais_fixes || {}) };
 			delete globalEdit.modules;
 			delete globalEdit.locked_params;
+			agentNotifs = { ...(data.settings.agent?.notifications  || {}) };
+			supNotifs   = { ...(data.settings.superviseur?.notifications || {}) };
+			maireEdit   = {
+				periode_dashboard: data.settings.maire?.periode_dashboard ?? 'mois',
+				...(data.settings.maire?.notifications || {})
+			};
 		}
 		if (communeRes.ok) {
 			commune = await communeRes.json();
@@ -344,6 +362,25 @@
 			settings[role] = { ...settings[role], ...data };
 			showToast(`Paramètres ${role} enregistrés`);
 		}
+	}
+
+	async function saveAgentNotifs() {
+		savingRole = 'agent';
+		await saveRoleSettings('agent', { notifications: { ...agentNotifs } });
+		savingRole = null;
+	}
+
+	async function saveSupNotifs() {
+		savingRole = 'superviseur';
+		await saveRoleSettings('superviseur', { notifications: { ...supNotifs } });
+		savingRole = null;
+	}
+
+	async function saveMaireSettings() {
+		savingRole = 'maire';
+		const { periode_dashboard, ...notifs } = maireEdit;
+		await saveRoleSettings('maire', { periode_dashboard, notifications: notifs });
+		savingRole = null;
 	}
 
 	async function toggleLock(param) {
@@ -874,164 +911,306 @@
 		<!-- ── TAB: PARAMÈTRES ─────────────────────────────────── -->
 		{:else if activeTab === 'params'}
 			<div class="space-y-6">
-				<h1 class="font-syne font-bold text-2xl text-gray-800">Paramètres système</h1>
+				<h1 class="font-syne font-bold text-2xl text-gray-800">Paramètres</h1>
 
-				<!-- Paramètres globaux -->
-				<div class="bg-white rounded-2xl border border-gray-100 p-6">
-					<h2 class="font-syne font-semibold text-gray-700 mb-5 flex items-center gap-2">
-						🌐 Paramètres globaux
-					</h2>
-					<div class="grid sm:grid-cols-2 gap-5">
-						<div>
-							<label class="label text-xs flex items-center gap-2">
-								Frais de copie (FCFA)
-								{#if lockedParams.includes('frais_copie')}<span class="text-xs text-red-500">🔒 verrouillé</span>{/if}
-							</label>
-							<input type="number" bind:value={globalEdit.frais_copie}
-								disabled={lockedParams.includes('frais_copie')}
-								class="input-field text-sm {lockedParams.includes('frais_copie') ? 'bg-gray-50 opacity-60' : ''}"/>
-						</div>
-						<div>
-							<label class="label text-xs flex items-center gap-2">
-								Frais copie intégrale (FCFA)
-								{#if lockedParams.includes('frais_copie_integrale')}<span class="text-xs text-red-500">🔒 verrouillé</span>{/if}
-							</label>
-							<input type="number" bind:value={globalEdit.frais_copie_integrale}
-								disabled={lockedParams.includes('frais_copie_integrale')}
-								class="input-field text-sm {lockedParams.includes('frais_copie_integrale') ? 'bg-gray-50 opacity-60' : ''}"/>
-						</div>
-						<div>
-							<label class="label text-xs flex items-center gap-2">
-								SLA par défaut (heures)
-								{#if lockedParams.includes('sla_heures_defaut')}<span class="text-xs text-red-500">🔒 verrouillé</span>{/if}
-							</label>
-							<input type="number" bind:value={globalEdit.sla_heures_defaut}
-								disabled={lockedParams.includes('sla_heures_defaut')}
-								class="input-field text-sm {lockedParams.includes('sla_heures_defaut') ? 'bg-gray-50 opacity-60' : ''}"/>
-						</div>
-						<div>
-							<label class="label text-xs flex items-center gap-2">
-								Frais traitement urgent (FCFA)
-								{#if lockedParams.includes('frais_urgence')}<span class="text-xs text-red-500">🔒 verrouillé</span>{/if}
-							</label>
-							<input type="number" bind:value={globalEdit.frais_urgence}
-								disabled={lockedParams.includes('frais_urgence')}
-								class="input-field text-sm {lockedParams.includes('frais_urgence') ? 'bg-gray-50 opacity-60' : ''}"/>
-						</div>
-						<div>
-							<label class="label text-xs flex items-center gap-2">
-								Délai déclaration naissance (jours)
-								{#if lockedParams.includes('delai_declaration_naissance_jours')}<span class="text-xs text-red-500">🔒 verrouillé</span>{/if}
-							</label>
-							<input type="number" bind:value={globalEdit.delai_declaration_naissance_jours}
-								disabled={lockedParams.includes('delai_declaration_naissance_jours')}
-								class="input-field text-sm {lockedParams.includes('delai_declaration_naissance_jours') ? 'bg-gray-50 opacity-60' : ''}"/>
-						</div>
-						<div>
-							<label class="label text-xs flex items-center gap-2">
-								Délai déclaration décès (jours)
-								{#if lockedParams.includes('delai_declaration_deces_jours')}<span class="text-xs text-red-500">🔒 verrouillé</span>{/if}
-							</label>
-							<input type="number" bind:value={globalEdit.delai_declaration_deces_jours}
-								disabled={lockedParams.includes('delai_declaration_deces_jours')}
-								class="input-field text-sm {lockedParams.includes('delai_declaration_deces_jours') ? 'bg-gray-50 opacity-60' : ''}"/>
-						</div>
-						<div>
-							<label class="label text-xs flex items-center gap-2">
-								Nb max pièces jointes par demande
-								{#if lockedParams.includes('max_pieces_jointes')}<span class="text-xs text-red-500">🔒 verrouillé</span>{/if}
-							</label>
-							<input type="number" min="1" max="20" bind:value={globalEdit.max_pieces_jointes}
-								disabled={lockedParams.includes('max_pieces_jointes')}
-								class="input-field text-sm {lockedParams.includes('max_pieces_jointes') ? 'bg-gray-50 opacity-60' : ''}"/>
-						</div>
-					</div>
-
-					<!-- Toggles globaux -->
-					<div class="mt-5 space-y-3 pt-5 border-t border-gray-100">
-						<h3 class="text-sm font-semibold text-gray-600">Options</h3>
+				<!-- ── Tarification ────────────────────────────────── -->
+				<div class="bg-white rounded-2xl border border-gray-100 p-6 space-y-5">
+					<h2 class="font-syne font-semibold text-gray-700 flex items-center gap-2">💰 Tarification</h2>
+					<div class="grid sm:grid-cols-3 gap-4">
 						{#each [
-							{ key: 'whatsapp_actif', label: 'Livraison WhatsApp activée', desc: 'Les actes sont envoyés par WhatsApp au citoyen.' },
-							{ key: 'notif_agent_nouvelle_demande', label: 'Notif agents : nouvelle demande', desc: 'Les agents reçoivent une notification pour chaque nouvelle demande.' },
-							{ key: 'notif_agent_escalade_resolue', label: 'Notif agents : escalade résolue', desc: 'Les agents sont notifiés quand leur escalade est résolue.' },
-							{ key: 'notif_superviseur_nouvelle_escalade', label: 'Notif superviseur : nouvelle escalade', desc: 'Le superviseur est notifié à chaque escalade.' }
-						] as opt}
-							{@const isLocked = lockedParams.includes(opt.key)}
-							<div class="flex items-center justify-between gap-4 py-2">
-								<div class="flex-1">
-									<p class="text-sm font-medium text-gray-800 flex items-center gap-1">
-										{opt.label}
-										{#if isLocked}<span class="text-xs text-red-500">🔒</span>{/if}
-									</p>
-									<p class="text-xs text-gray-400">{opt.desc}</p>
-								</div>
-								<button
-									on:click={() => !isLocked && (globalEdit[opt.key] = !globalEdit[opt.key])}
-									class="relative w-11 h-6 rounded-full transition-all duration-300 flex-shrink-0
-										{globalEdit[opt.key] ? 'bg-primary-500' : 'bg-gray-300'}
-										{isLocked ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}"
-								>
-									<span class="absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all duration-300
-										{globalEdit[opt.key] ? 'left-5' : 'left-0.5'}"></span>
-								</button>
+							{ key:'frais_copie',          label:'Frais de copie (FCFA)' },
+							{ key:'frais_copie_integrale', label:'Copie intégrale (FCFA)' },
+							{ key:'frais_urgence',         label:'Traitement urgent (FCFA)' }
+						] as f}
+							{@const locked = lockedParams.includes(f.key)}
+							<div>
+								<label class="label text-xs flex items-center gap-1">{f.label}{#if locked}<span class="text-red-500">🔒</span>{/if}</label>
+								<input type="number" bind:value={globalEdit[f.key]} disabled={locked}
+									class="input-field text-sm {locked ? 'bg-gray-50 opacity-60' : ''}" />
 							</div>
 						{/each}
-					</div>
-
-					<button on:click={saveGlobalParams} disabled={saving} class="btn-primary text-sm mt-5">
-						{saving ? 'Enregistrement...' : 'Enregistrer les paramètres globaux'}
-					</button>
-				</div>
-
-				<!-- Paramètres agents -->
-				<div class="bg-white rounded-2xl border border-gray-100 p-6">
-					<h2 class="font-syne font-semibold text-gray-700 mb-5 flex items-center gap-2">
-						👩‍💼 Paramètres agents
-					</h2>
-					<div class="space-y-4">
-						<div>
-							<label class="label text-xs flex items-center gap-2">
-								SLA alerte (heures)
-								{#if lockedParams.includes('sla_heures')}<span class="text-xs text-red-500">🔒 verrouillé — non modifiable par les agents</span>{/if}
-							</label>
-							<div class="flex items-center gap-3">
-								{#each [24, 48, 72] as h}
-									<button
-										on:click={() => !lockedParams.includes('sla_heures') && saveRoleSettings('agent', { sla_heures: h })}
-										class="px-4 py-2 rounded-xl border-2 text-sm font-medium transition-all
-											{settings.agent?.sla_heures === h ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-gray-200 text-gray-600'}
-											{lockedParams.includes('sla_heures') ? 'opacity-50 cursor-not-allowed' : 'hover:border-primary-300'}"
-									>{h}h</button>
-								{/each}
-							</div>
 						</div>
-					</div>
-				</div>
 
-				<!-- Paramètres superviseur -->
-				<div class="bg-white rounded-2xl border border-gray-100 p-6">
-					<h2 class="font-syne font-semibold text-gray-700 mb-5 flex items-center gap-2">
-						👨‍💻 Paramètres superviseur
-					</h2>
-					<div>
-						<label class="label text-xs flex items-center gap-2">
-							Seuil alerte escalades
-							{#if lockedParams.includes('seuil_escalades_alerte')}<span class="text-xs text-red-500">🔒 verrouillé</span>{/if}
-						</label>
-						<div class="flex items-center gap-3">
-							{#each [1, 3, 5, 10] as s}
-								<button
-									on:click={() => !lockedParams.includes('seuil_escalades_alerte') && saveRoleSettings('superviseur', { seuil_escalades_alerte: s })}
-									class="px-4 py-2 rounded-xl border-2 text-sm font-medium transition-all
-										{settings.superviseur?.seuil_escalades_alerte === s ? 'border-violet-500 bg-violet-50 text-violet-700' : 'border-gray-200 text-gray-600'}
-										{lockedParams.includes('seuil_escalades_alerte') ? 'opacity-50 cursor-not-allowed' : 'hover:border-violet-300'}"
-								>{s}</button>
+					<!-- Frais fixes par type de service -->
+					<div class="pt-4 border-t border-gray-100">
+						<h3 class="text-sm font-semibold text-gray-600 mb-3">Frais fixes par type de service</h3>
+						<div class="grid sm:grid-cols-3 gap-4">
+							{#each [
+								{ key:'attestation_concubinage',   label:'Attestation concubinage' },
+								{ key:'legalisation',              label:'Légalisation' },
+								{ key:'duplicata_livret',           label:'Duplicata livret' },
+								{ key:'certificat_vie_entretien',   label:'Cert. vie entretien' },
+								{ key:'fiche_familiale',            label:'Fiche familiale' },
+								{ key:'fiche_individuelle',         label:'Fiche individuelle' }
+							] as ff}
+								<div>
+									<label class="label text-xs">{ff.label} (FCFA)</label>
+									<input type="number" bind:value={globalEdit.frais_fixes[ff.key]} class="input-field text-sm" />
+								</div>
 							{/each}
 						</div>
 					</div>
 				</div>
-			</div>
 
+				<!-- ── Traitement & délais ──────────────────────────── -->
+				<div class="bg-white rounded-2xl border border-gray-100 p-6 space-y-4">
+					<h2 class="font-syne font-semibold text-gray-700 flex items-center gap-2">⏱️ Traitement & délais</h2>
+					<div class="grid sm:grid-cols-2 gap-4">
+						{#each [
+							{ key:'sla_heures_defaut',                    label:'SLA par défaut (heures)' },
+							{ key:'delai_declaration_naissance_jours',    label:'Délai déclaration naissance (jours)' },
+							{ key:'delai_declaration_deces_jours',        label:'Délai déclaration décès (jours)' },
+							{ key:'max_pieces_jointes',                   label:'Nb max pièces jointes' }
+						] as f}
+							{@const locked = lockedParams.includes(f.key)}
+							<div>
+								<label class="label text-xs flex items-center gap-1">{f.label}{#if locked}<span class="text-red-500">🔒</span>{/if}</label>
+								<input type="number" bind:value={globalEdit[f.key]} disabled={locked}
+									class="input-field text-sm {locked ? 'bg-gray-50 opacity-60' : ''}" />
+							</div>
+						{/each}
+					</div>
+				</div>
+
+				<!-- ── Notifications globales ────────────────────────── -->
+				<div class="bg-white rounded-2xl border border-gray-100 p-6 space-y-3">
+					<h2 class="font-syne font-semibold text-gray-700 flex items-center gap-2">🔔 Notifications & intégrations</h2>
+					{#each [
+						{ key:'whatsapp_actif',                      label:'Livraison WhatsApp activée',            desc:'Les actes sont envoyés par WhatsApp au citoyen.' },
+						{ key:'notif_agent_nouvelle_demande',        label:'Notif agents : nouvelle demande',        desc:'Les agents reçoivent une notification à chaque nouvelle demande.' },
+						{ key:'notif_agent_escalade_resolue',        label:'Notif agents : escalade résolue',        desc:'Les agents sont notifiés quand leur escalade est résolue.' },
+						{ key:'notif_agent_reassignation',           label:'Notif agents : réassignation',           desc:'Les agents sont notifiés quand un dossier leur est réassigné.' },
+						{ key:'notif_superviseur_nouvelle_escalade', label:'Notif superviseur : nouvelle escalade',  desc:'Le superviseur est notifié à chaque escalade créée.' },
+						{ key:'notif_maire_cas_critique',            label:'Notif maire : cas critique (SLA)',        desc:'Le maire est notifié lorsqu\'une demande dépasse le SLA.' }
+					] as opt}
+						{@const locked = lockedParams.includes(opt.key)}
+						<div class="flex items-center justify-between gap-4 py-2 border-b border-gray-50 last:border-0">
+							<div class="flex-1">
+								<p class="text-sm font-medium text-gray-800 flex items-center gap-1">{opt.label}{#if locked}<span class="text-xs text-red-500">🔒</span>{/if}</p>
+								<p class="text-xs text-gray-400">{opt.desc}</p>
+							</div>
+							<button on:click={() => !locked && (globalEdit[opt.key] = !globalEdit[opt.key])}
+								class="relative w-11 h-6 rounded-full transition-all duration-300 flex-shrink-0
+									{globalEdit[opt.key] ? 'bg-primary-500' : 'bg-gray-300'}
+									{locked ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}">
+								<span class="absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all duration-300 {globalEdit[opt.key] ? 'left-5' : 'left-0.5'}"></span>
+							</button>
+						</div>
+					{/each}
+				</div>
+
+				<!-- ── Paramètres système ────────────────────────────── -->
+				<div class="bg-white rounded-2xl border border-gray-100 p-6 space-y-4">
+					<h2 class="font-syne font-semibold text-gray-700 flex items-center gap-2">🖥️ Paramètres système</h2>
+					<div class="grid sm:grid-cols-2 gap-4">
+						<div>
+							<label class="label text-xs">Langue de l'interface</label>
+							<select bind:value={globalEdit.langue} class="input-field text-sm">
+								<option value="fr">Français</option>
+								<option value="en">English</option>
+							</select>
+						</div>
+						<div>
+							<label class="label text-xs">Fuseau horaire</label>
+							<select bind:value={globalEdit.timezone} class="input-field text-sm">
+								<option value="Africa/Abidjan">Africa/Abidjan (GMT+0)</option>
+								<option value="Africa/Dakar">Africa/Dakar (GMT+0)</option>
+								<option value="Africa/Lagos">Africa/Lagos (GMT+1)</option>
+								<option value="Europe/Paris">Europe/Paris (GMT+1/2)</option>
+							</select>
+						</div>
+						<div>
+							<label class="label text-xs">Format de date</label>
+							<select bind:value={globalEdit.format_date} class="input-field text-sm">
+								<option value="dd/mm/yyyy">JJ/MM/AAAA</option>
+								<option value="mm/dd/yyyy">MM/JJ/AAAA</option>
+								<option value="yyyy-mm-dd">AAAA-MM-JJ (ISO)</option>
+							</select>
+						</div>
+						<div>
+							{@const locked = lockedParams.includes('securite_session_heures')}
+							<label class="label text-xs flex items-center gap-1">Durée de session (heures){#if locked}<span class="text-red-500">🔒</span>{/if}</label>
+							<input type="number" min="1" max="72" bind:value={globalEdit.securite_session_heures} disabled={locked}
+								class="input-field text-sm {locked ? 'bg-gray-50 opacity-60' : ''}" />
+						</div>
+					</div>
+				</div>
+
+				<!-- ── Paramètres lumière / interface ───────────────── -->
+				<div class="bg-white rounded-2xl border border-gray-100 p-6 space-y-4">
+					<h2 class="font-syne font-semibold text-gray-700 flex items-center gap-2">🌓 Paramètres lumière & interface</h2>
+					<div class="grid sm:grid-cols-2 gap-4">
+						<div>
+							{@const locked = lockedParams.includes('theme')}
+							<label class="label text-xs flex items-center gap-1">Thème de l'interface{#if locked}<span class="text-red-500">🔒</span>{/if}</label>
+							<select bind:value={globalEdit.theme} disabled={locked}
+								class="input-field text-sm {locked ? 'bg-gray-50 opacity-60' : ''}">
+								<option value="light">☀️ Clair</option>
+								<option value="dark">🌙 Sombre</option>
+								<option value="auto">🖥️ Automatique (système)</option>
+							</select>
+						</div>
+						<div>
+							{@const locked = lockedParams.includes('taille_police')}
+							<label class="label text-xs flex items-center gap-1">Taille de police{#if locked}<span class="text-red-500">🔒</span>{/if}</label>
+							<select bind:value={globalEdit.taille_police} disabled={locked}
+								class="input-field text-sm {locked ? 'bg-gray-50 opacity-60' : ''}">
+								<option value="small">Petite</option>
+								<option value="normal">Normale</option>
+								<option value="large">Grande</option>
+								<option value="xlarge">Très grande</option>
+							</select>
+						</div>
+					</div>
+					<div class="flex items-center justify-between gap-4 pt-2">
+						<div>
+							<p class="text-sm font-medium text-gray-800">Animations de l'interface</p>
+							<p class="text-xs text-gray-400">Transitions, fondus et effets visuels.</p>
+						</div>
+						<button on:click={() => globalEdit.animations = !globalEdit.animations}
+							class="relative w-11 h-6 rounded-full transition-all duration-300 flex-shrink-0 cursor-pointer
+								{globalEdit.animations ? 'bg-primary-500' : 'bg-gray-300'}">
+							<span class="absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all duration-300 {globalEdit.animations ? 'left-5' : 'left-0.5'}"></span>
+						</button>
+					</div>
+				</div>
+
+				<!-- Bouton global save -->
+				<button on:click={saveGlobalParams} disabled={saving}
+					class="btn-primary text-sm w-full sm:w-auto">
+					{saving ? 'Enregistrement…' : '💾 Enregistrer tous les paramètres globaux'}
+				</button>
+
+				<!-- ── Paramètres agent ──────────────────────────────── -->
+				<div class="bg-white rounded-2xl border border-gray-100 p-6 space-y-5">
+					<h2 class="font-syne font-semibold text-gray-700 flex items-center gap-2">👩‍💼 Paramètres agent</h2>
+
+					<!-- SLA -->
+					<div>
+						{@const locked = lockedParams.includes('sla_heures')}
+						<label class="label text-xs flex items-center gap-1">SLA alerte (heures){#if locked}<span class="text-red-500">🔒 non modifiable par les agents</span>{/if}</label>
+						<div class="flex items-center gap-3 flex-wrap">
+							{#each [24, 48, 72, 96] as h}
+								<button on:click={() => !locked && saveRoleSettings('agent', { sla_heures: h })}
+									class="px-4 py-2 rounded-xl border-2 text-sm font-medium transition-all
+										{settings.agent?.sla_heures === h ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-gray-200 text-gray-600'}
+										{locked ? 'opacity-50 cursor-not-allowed' : 'hover:border-primary-300'}"
+								>{h}h</button>
+							{/each}
+						</div>
+					</div>
+
+					<!-- Notifications agent -->
+					<div class="pt-4 border-t border-gray-100 space-y-2">
+						<h3 class="text-sm font-semibold text-gray-600">Préférences de notification (agents)</h3>
+						{#each [
+							{ key:'nouvelle_demande', label:'Nouvelle demande',  lockKey:'notif_agent_nouvelle_demande', desc:'Notifié à chaque nouvelle demande assignée.' },
+							{ key:'escalade_resolue', label:'Escalade résolue',  lockKey:'notif_agent_escalade_resolue', desc:'Notifié quand une de ses escalades est résolue.' },
+							{ key:'reassignation',   label:'Réassignation',     lockKey:'notif_agent_reassignation',    desc:'Notifié quand un dossier lui est réassigné.' }
+						] as notif}
+							{@const locked = lockedParams.includes(notif.lockKey)}
+							<div class="flex items-center justify-between gap-4 py-1.5">
+								<div class="flex-1">
+									<p class="text-sm text-gray-800 flex items-center gap-1">{notif.label}{#if locked}<span class="text-xs text-red-500">🔒</span>{/if}</p>
+									<p class="text-xs text-gray-400">{notif.desc}</p>
+								</div>
+								<button on:click={() => !locked && (agentNotifs[notif.key] = !agentNotifs[notif.key])}
+									class="relative w-11 h-6 rounded-full transition-all duration-300 flex-shrink-0
+										{agentNotifs[notif.key] ? 'bg-primary-500' : 'bg-gray-300'}
+										{locked ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}">
+									<span class="absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all duration-300 {agentNotifs[notif.key] ? 'left-5' : 'left-0.5'}"></span>
+								</button>
+							</div>
+						{/each}
+						<button on:click={saveAgentNotifs} disabled={savingRole === 'agent'} class="btn-secondary text-xs mt-2">
+							{savingRole === 'agent' ? 'Enregistrement…' : 'Enregistrer notifications agent'}
+						</button>
+					</div>
+				</div>
+
+				<!-- ── Paramètres superviseur ────────────────────────── -->
+				<div class="bg-white rounded-2xl border border-gray-100 p-6 space-y-5">
+					<h2 class="font-syne font-semibold text-gray-700 flex items-center gap-2">👔 Paramètres superviseur</h2>
+
+					<!-- Seuil escalades -->
+					<div>
+						{@const locked = lockedParams.includes('seuil_escalades_alerte')}
+						<label class="label text-xs flex items-center gap-1">Seuil alerte escalades{#if locked}<span class="text-red-500">🔒</span>{/if}</label>
+						<div class="flex items-center gap-3 flex-wrap">
+							{#each [1, 3, 5, 10] as s}
+								<button on:click={() => !locked && saveRoleSettings('superviseur', { seuil_escalades_alerte: s })}
+									class="px-4 py-2 rounded-xl border-2 text-sm font-medium transition-all
+										{settings.superviseur?.seuil_escalades_alerte === s ? 'border-violet-500 bg-violet-50 text-violet-700' : 'border-gray-200 text-gray-600'}
+										{locked ? 'opacity-50 cursor-not-allowed' : 'hover:border-violet-300'}"
+								>{s}</button>
+							{/each}
+						</div>
+					</div>
+
+					<!-- Notifications superviseur -->
+					<div class="pt-4 border-t border-gray-100 space-y-2">
+						<h3 class="text-sm font-semibold text-gray-600">Préférences de notification (superviseur)</h3>
+						{@const locked = lockedParams.includes('notif_superviseur_nouvelle_escalade')}
+						<div class="flex items-center justify-between gap-4 py-1.5">
+							<div class="flex-1">
+								<p class="text-sm text-gray-800 flex items-center gap-1">Nouvelle escalade{#if locked}<span class="text-xs text-red-500">🔒</span>{/if}</p>
+								<p class="text-xs text-gray-400">Notifié à chaque escalade créée par un agent.</p>
+							</div>
+							<button on:click={() => !locked && (supNotifs.nouvelle_escalade = !supNotifs.nouvelle_escalade)}
+								class="relative w-11 h-6 rounded-full transition-all duration-300 flex-shrink-0
+									{supNotifs.nouvelle_escalade ? 'bg-primary-500' : 'bg-gray-300'}
+									{locked ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}">
+								<span class="absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all duration-300 {supNotifs.nouvelle_escalade ? 'left-5' : 'left-0.5'}"></span>
+							</button>
+						</div>
+						<button on:click={saveSupNotifs} disabled={savingRole === 'superviseur'} class="btn-secondary text-xs mt-2">
+							{savingRole === 'superviseur' ? 'Enregistrement…' : 'Enregistrer notifications superviseur'}
+						</button>
+					</div>
+				</div>
+
+				<!-- ── Paramètres maire ──────────────────────────────── -->
+				<div class="bg-white rounded-2xl border border-gray-100 p-6 space-y-5">
+					<h2 class="font-syne font-semibold text-gray-700 flex items-center gap-2">🏛️ Paramètres maire</h2>
+
+					<!-- Période dashboard -->
+					<div>
+						{@const locked = lockedParams.includes('periode_dashboard')}
+						<label class="label text-xs flex items-center gap-1">Période par défaut du dashboard{#if locked}<span class="text-red-500">🔒</span>{/if}</label>
+						<div class="flex gap-3 flex-wrap">
+							{#each [{v:'semaine',l:'Semaine'},{v:'mois',l:'Mois'},{v:'trimestre',l:'Trimestre'},{v:'annee',l:'Année'}] as opt}
+								<button on:click={() => !locked && (maireEdit.periode_dashboard = opt.v)}
+									class="px-4 py-2 rounded-xl border-2 text-sm font-medium transition-all
+										{maireEdit.periode_dashboard === opt.v ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-gray-200 text-gray-600'}
+										{locked ? 'opacity-50 cursor-not-allowed' : 'hover:border-primary-300'}"
+								>{opt.l}</button>
+							{/each}
+						</div>
+					</div>
+
+					<!-- Notifications maire -->
+					<div class="pt-4 border-t border-gray-100 space-y-2">
+						<h3 class="text-sm font-semibold text-gray-600">Préférences de notification (maire)</h3>
+						{@const locked = lockedParams.includes('notif_maire_cas_critique')}
+						<div class="flex items-center justify-between gap-4 py-1.5">
+							<div class="flex-1">
+								<p class="text-sm text-gray-800 flex items-center gap-1">Cas critique (SLA dépassé){#if locked}<span class="text-xs text-red-500">🔒</span>{/if}</p>
+								<p class="text-xs text-gray-400">Le maire est alerté lorsqu'une demande dépasse le délai SLA.</p>
+							</div>
+							<button on:click={() => !locked && (maireEdit.cas_critique = !maireEdit.cas_critique)}
+								class="relative w-11 h-6 rounded-full transition-all duration-300 flex-shrink-0
+									{maireEdit.cas_critique ? 'bg-primary-500' : 'bg-gray-300'}
+									{locked ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}">
+								<span class="absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all duration-300 {maireEdit.cas_critique ? 'left-5' : 'left-0.5'}"></span>
+							</button>
+						</div>
+						<button on:click={saveMaireSettings} disabled={savingRole === 'maire'} class="btn-secondary text-xs mt-2">
+							{savingRole === 'maire' ? 'Enregistrement…' : 'Enregistrer paramètres maire'}
+						</button>
+					</div>
+				</div>
+
+			</div>
 		<!-- ── TAB: VERROUILLAGES ──────────────────────────────── -->
 		{:else if activeTab === 'locks'}
 			<div class="space-y-6">
