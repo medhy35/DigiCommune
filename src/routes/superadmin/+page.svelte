@@ -197,7 +197,8 @@
 		reassignation:        { label: 'Réassignation',         color: 'bg-cyan-100 text-cyan-800' },
 		paiement_valide:      { label: 'Paiement validé',       color: 'bg-green-100 text-green-800' },
 		remboursement_initie: { label: 'Remboursement initié',  color: 'bg-yellow-100 text-yellow-700' },
-		remboursement_valide: { label: 'Remboursement effectué', color: 'bg-amber-100 text-amber-800' }
+		remboursement_valide: { label: 'Remboursement effectué', color: 'bg-amber-100 text-amber-800' },
+		complement_demande:   { label: 'Compléments demandés',  color: 'bg-purple-100 text-purple-700' }
 	};
 	const SEC_ACTEUR_ICONS = {
 		superadmin:  '🔐',
@@ -390,6 +391,35 @@
 			body: JSON.stringify({ action: 'toggle_user', userId, role })
 		});
 		if (res.ok) await loadAll();
+	}
+
+	// Édition inline
+	let editingUser = null;
+	let editUserError = '';
+
+	function startEdit(u) {
+		editingUser = { id: u.id, role: u.role, prenom: u.prenom, nom: u.nom, email: u.email };
+		editUserError = '';
+	}
+
+	async function saveEditUser() {
+		editUserError = '';
+		if (!editingUser.prenom || !editingUser.nom || !editingUser.email) {
+			editUserError = 'Tous les champs sont requis.';
+			return;
+		}
+		const res = await fetch('/api/admin', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ action: 'update_user', userId: editingUser.id, role: editingUser.role, data: { prenom: editingUser.prenom, nom: editingUser.nom, email: editingUser.email, avatar: (editingUser.prenom[0] + editingUser.nom[0]).toUpperCase() } })
+		});
+		if (res.ok) {
+			await loadAll();
+			editingUser = null;
+			showToast('Utilisateur modifié');
+		} else {
+			editUserError = 'Erreur lors de la sauvegarde.';
+		}
 	}
 
 	function logout() {
@@ -704,6 +734,7 @@
 								<select bind:value={newUser.role} class="input-field text-sm">
 									<option value="agent">Agent</option>
 									<option value="superviseur">Superviseur</option>
+									<option value="maire">Maire</option>
 								</select>
 							</div>
 						</div>
@@ -722,26 +753,37 @@
 					</h2>
 					<div class="space-y-2">
 						{#each users.agents || [] as agent}
-							<div class="bg-white rounded-xl border border-gray-100 p-4 flex items-center gap-4">
-								<div class="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center font-syne font-bold text-blue-700 text-sm flex-shrink-0">
-									{agent.avatar}
+							{#if editingUser?.id === agent.id}
+								<div class="bg-blue-50 rounded-xl border border-blue-200 p-4 space-y-3">
+									<div class="grid grid-cols-3 gap-3">
+										<input type="text" bind:value={editingUser.prenom} class="input-field text-sm" placeholder="Prénom" />
+										<input type="text" bind:value={editingUser.nom} class="input-field text-sm" placeholder="Nom" />
+										<input type="email" bind:value={editingUser.email} class="input-field text-sm" placeholder="Email" />
+									</div>
+									{#if editUserError}<p class="text-xs text-red-500">{editUserError}</p>{/if}
+									<div class="flex gap-2">
+										<button on:click={saveEditUser} class="btn-primary text-xs px-3 py-1.5">Enregistrer</button>
+										<button on:click={() => editingUser = null} class="btn-secondary text-xs px-3 py-1.5">Annuler</button>
+									</div>
 								</div>
-								<div class="flex-1">
-									<p class="font-medium text-gray-800 text-sm">{agent.prenom} {agent.nom}</p>
-									<p class="text-xs text-gray-400">{agent.email}</p>
+							{:else}
+								<div class="bg-white rounded-xl border border-gray-100 p-4 flex items-center gap-4">
+									<div class="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center font-syne font-bold text-blue-700 text-sm flex-shrink-0">
+										{agent.avatar}
+									</div>
+									<div class="flex-1">
+										<p class="font-medium text-gray-800 text-sm">{agent.prenom} {agent.nom}</p>
+										<p class="text-xs text-gray-400">{agent.email}</p>
+									</div>
+									<span class="text-xs px-2 py-0.5 rounded-full font-medium {agent.actif !== false ? 'bg-primary-100 text-primary-700' : 'bg-gray-100 text-gray-500'}">
+										{agent.actif !== false ? 'Actif' : 'Inactif'}
+									</span>
+									<button on:click={() => startEdit({ ...agent, role: 'agent' })} class="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-all">Modifier</button>
+									<button on:click={() => toggleUser(agent.id, 'agent')} class="text-xs px-3 py-1.5 rounded-lg border transition-all {agent.actif !== false ? 'border-red-200 text-red-600 hover:bg-red-50' : 'border-primary-200 text-primary-600 hover:bg-primary-50'}">
+										{agent.actif !== false ? 'Désactiver' : 'Réactiver'}
+									</button>
 								</div>
-								<span class="text-xs px-2 py-0.5 rounded-full font-medium
-									{agent.actif !== false ? 'bg-primary-100 text-primary-700' : 'bg-gray-100 text-gray-500'}">
-									{agent.actif !== false ? 'Actif' : 'Inactif'}
-								</span>
-								<button
-									on:click={() => toggleUser(agent.id, 'agent')}
-									class="text-xs px-3 py-1.5 rounded-lg border transition-all
-										{agent.actif !== false ? 'border-red-200 text-red-600 hover:bg-red-50' : 'border-primary-200 text-primary-600 hover:bg-primary-50'}"
-								>
-									{agent.actif !== false ? 'Désactiver' : 'Réactiver'}
-								</button>
-							</div>
+							{/if}
 						{/each}
 					</div>
 				</div>
@@ -753,26 +795,37 @@
 					</h2>
 					<div class="space-y-2">
 						{#each users.superviseurs || [] as sup}
-							<div class="bg-white rounded-xl border border-gray-100 p-4 flex items-center gap-4">
-								<div class="w-10 h-10 bg-violet-100 rounded-xl flex items-center justify-center font-syne font-bold text-violet-700 text-sm flex-shrink-0">
-									{sup.avatar}
+							{#if editingUser?.id === sup.id}
+								<div class="bg-violet-50 rounded-xl border border-violet-200 p-4 space-y-3">
+									<div class="grid grid-cols-3 gap-3">
+										<input type="text" bind:value={editingUser.prenom} class="input-field text-sm" placeholder="Prénom" />
+										<input type="text" bind:value={editingUser.nom} class="input-field text-sm" placeholder="Nom" />
+										<input type="email" bind:value={editingUser.email} class="input-field text-sm" placeholder="Email" />
+									</div>
+									{#if editUserError}<p class="text-xs text-red-500">{editUserError}</p>{/if}
+									<div class="flex gap-2">
+										<button on:click={saveEditUser} class="btn-primary text-xs px-3 py-1.5">Enregistrer</button>
+										<button on:click={() => editingUser = null} class="btn-secondary text-xs px-3 py-1.5">Annuler</button>
+									</div>
 								</div>
-								<div class="flex-1">
-									<p class="font-medium text-gray-800 text-sm">{sup.prenom} {sup.nom}</p>
-									<p class="text-xs text-gray-400">{sup.email}</p>
+							{:else}
+								<div class="bg-white rounded-xl border border-gray-100 p-4 flex items-center gap-4">
+									<div class="w-10 h-10 bg-violet-100 rounded-xl flex items-center justify-center font-syne font-bold text-violet-700 text-sm flex-shrink-0">
+										{sup.avatar}
+									</div>
+									<div class="flex-1">
+										<p class="font-medium text-gray-800 text-sm">{sup.prenom} {sup.nom}</p>
+										<p class="text-xs text-gray-400">{sup.email}</p>
+									</div>
+									<span class="text-xs px-2 py-0.5 rounded-full font-medium {sup.actif !== false ? 'bg-primary-100 text-primary-700' : 'bg-gray-100 text-gray-500'}">
+										{sup.actif !== false ? 'Actif' : 'Inactif'}
+									</span>
+									<button on:click={() => startEdit({ ...sup, role: 'superviseur' })} class="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-all">Modifier</button>
+									<button on:click={() => toggleUser(sup.id, 'superviseur')} class="text-xs px-3 py-1.5 rounded-lg border transition-all {sup.actif !== false ? 'border-red-200 text-red-600 hover:bg-red-50' : 'border-primary-200 text-primary-600 hover:bg-primary-50'}">
+										{sup.actif !== false ? 'Désactiver' : 'Réactiver'}
+									</button>
 								</div>
-								<span class="text-xs px-2 py-0.5 rounded-full font-medium
-									{sup.actif !== false ? 'bg-primary-100 text-primary-700' : 'bg-gray-100 text-gray-500'}">
-									{sup.actif !== false ? 'Actif' : 'Inactif'}
-								</span>
-								<button
-									on:click={() => toggleUser(sup.id, 'superviseur')}
-									class="text-xs px-3 py-1.5 rounded-lg border transition-all
-										{sup.actif !== false ? 'border-red-200 text-red-600 hover:bg-red-50' : 'border-primary-200 text-primary-600 hover:bg-primary-50'}"
-								>
-									{sup.actif !== false ? 'Désactiver' : 'Réactiver'}
-								</button>
-							</div>
+							{/if}
 						{/each}
 					</div>
 				</div>
@@ -783,16 +836,37 @@
 					<h2 class="font-syne font-semibold text-gray-600 text-sm uppercase tracking-wide mb-3 flex items-center gap-2">
 						<span class="w-2 h-2 bg-primary-400 rounded-full"></span> Maire
 					</h2>
-					<div class="bg-white rounded-xl border border-gray-100 p-4 flex items-center gap-4">
-						<div class="w-10 h-10 bg-primary-100 rounded-xl flex items-center justify-center font-syne font-bold text-primary-700 text-sm flex-shrink-0">
-							{users.maire.avatar}
+					{#if editingUser?.id === users.maire.id}
+						<div class="bg-primary-50 rounded-xl border border-primary-200 p-4 space-y-3">
+							<div class="grid grid-cols-3 gap-3">
+								<input type="text" bind:value={editingUser.prenom} class="input-field text-sm" placeholder="Prénom" />
+								<input type="text" bind:value={editingUser.nom} class="input-field text-sm" placeholder="Nom" />
+								<input type="email" bind:value={editingUser.email} class="input-field text-sm" placeholder="Email" />
+							</div>
+							{#if editUserError}<p class="text-xs text-red-500">{editUserError}</p>{/if}
+							<div class="flex gap-2">
+								<button on:click={saveEditUser} class="btn-primary text-xs px-3 py-1.5">Enregistrer</button>
+								<button on:click={() => editingUser = null} class="btn-secondary text-xs px-3 py-1.5">Annuler</button>
+							</div>
 						</div>
-						<div class="flex-1">
-							<p class="font-medium text-gray-800 text-sm">{users.maire.prenom} {users.maire.nom}</p>
-							<p class="text-xs text-gray-400">{users.maire.email}</p>
+					{:else}
+						<div class="bg-white rounded-xl border border-gray-100 p-4 flex items-center gap-4">
+							<div class="w-10 h-10 bg-primary-100 rounded-xl flex items-center justify-center font-syne font-bold text-primary-700 text-sm flex-shrink-0">
+								{users.maire.avatar}
+							</div>
+							<div class="flex-1">
+								<p class="font-medium text-gray-800 text-sm">{users.maire.prenom} {users.maire.nom}</p>
+								<p class="text-xs text-gray-400">{users.maire.email}</p>
+							</div>
+							<span class="text-xs px-2 py-0.5 rounded-full font-medium {users.maire.actif !== false ? 'bg-primary-100 text-primary-700' : 'bg-gray-100 text-gray-500'}">
+								{users.maire.actif !== false ? 'Actif' : 'Inactif'}
+							</span>
+							<button on:click={() => startEdit({ ...users.maire, role: 'maire' })} class="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-all">Modifier</button>
+							<button on:click={() => toggleUser(users.maire.id, 'maire')} class="text-xs px-3 py-1.5 rounded-lg border transition-all {users.maire.actif !== false ? 'border-red-200 text-red-600 hover:bg-red-50' : 'border-primary-200 text-primary-600 hover:bg-primary-50'}">
+								{users.maire.actif !== false ? 'Désactiver' : 'Réactiver'}
+							</button>
 						</div>
-						<span class="text-xs bg-primary-100 text-primary-700 px-2 py-0.5 rounded-full font-medium">Maire</span>
-					</div>
+					{/if}
 				</div>
 				{/if}
 			</div>

@@ -82,6 +82,7 @@ export async function POST({ request }) {
 			const newUser = { ...user, id: `${role}_${Date.now()}`, role, actif: true, avatar: (user.prenom[0] + user.nom[0]).toUpperCase() };
 			if (role === 'agent')            users.agents.push(newUser);
 			else if (role === 'superviseur') users.superviseurs.push(newUser);
+			else if (role === 'maire')       users.maire = newUser;
 			writeUsers(users);
 			appendSecurityLog('user_add', 'superadmin', {
 				role,
@@ -93,19 +94,20 @@ export async function POST({ request }) {
 
 		case 'toggle_user': {
 			const { userId, role } = body;
-			const list = role === 'agent' ? users.agents : role === 'superviseur' ? users.superviseurs : null;
-			if (list) {
-				const u = list.find(a => a.id === userId);
-				if (u) {
-					u.actif = !u.actif;
-					writeUsers(users);
-					appendSecurityLog('user_toggle', 'superadmin', {
-						userId,
-						role,
-						nom:   `${u.prenom} ${u.nom}`,
-						actif: u.actif
-					});
-				}
+			let toggled = null;
+			if (role === 'agent') {
+				toggled = users.agents.find(a => a.id === userId);
+				if (toggled) toggled.actif = !toggled.actif;
+			} else if (role === 'superviseur') {
+				toggled = users.superviseurs.find(s => s.id === userId);
+				if (toggled) toggled.actif = !toggled.actif;
+			} else if (role === 'maire' && users.maire?.id === userId) {
+				users.maire.actif = !users.maire.actif;
+				toggled = users.maire;
+			}
+			if (toggled) {
+				writeUsers(users);
+				appendSecurityLog('user_toggle', 'superadmin', { userId, role, nom: `${toggled.prenom} ${toggled.nom}`, actif: toggled.actif });
 			}
 			return json({ ok: true });
 		}
