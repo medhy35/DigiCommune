@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { commune as communeStore } from '$lib/stores/commune.js';
+	import CommuneLogo from '$lib/components/CommuneLogo.svelte';
 
 	let searchNumero = '';
 	let searching = false;
@@ -101,13 +102,7 @@
 <header class="bg-white border-b border-gray-100 sticky top-0 z-50 shadow-sm">
 	<div class="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
 		<div class="flex items-center gap-3">
-			{#if commune?.logo}
-				<img src={commune.logo} alt={commune.nom_app || 'Logo'} class="w-10 h-10 rounded-xl object-contain shadow-sm" />
-			{:else}
-				<div class="w-10 h-10 bg-primary-500 rounded-xl flex items-center justify-center shadow-sm">
-					<span class="text-white font-syne font-bold text-lg leading-none">{(commune?.nom_app || 'C')[0]}</span>
-				</div>
-			{/if}
+			<CommuneLogo {commune} size="w-10 h-10" rounded="rounded-xl" shadow="shadow-sm" />
 			<div>
 				<span class="font-syne font-bold text-xl text-primary-600">{commune?.nom_app || 'CiviCI'}</span>
 				{#if commune}
@@ -306,13 +301,7 @@
 		<div class="flex flex-col sm:flex-row justify-between gap-8">
 			<div>
 				<div class="flex items-center gap-2 mb-3">
-					{#if commune?.logo}
-						<img src={commune.logo} alt={commune.nom_app || 'Logo'} class="w-8 h-8 rounded-lg object-contain" />
-					{:else}
-						<div class="w-8 h-8 bg-primary-500 rounded-lg flex items-center justify-center">
-							<span class="text-white font-syne font-bold text-sm">{(commune?.nom_app || 'C')[0]}</span>
-						</div>
-					{/if}
+					<CommuneLogo {commune} />
 					<span class="font-syne font-bold text-white text-lg">{commune?.nom_app || 'CiviCI'}</span>
 				</div>
 				{#if commune}

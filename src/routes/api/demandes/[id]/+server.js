@@ -1,5 +1,5 @@
 import { json, error } from '@sveltejs/kit';
-import { readDemandes, writeDemandes, readUsers, appendSecurityLog } from '$lib/server/data.js';
+import { readDemandes, writeDemandes, readUsers, batchSecurityLog } from '$lib/server/data.js';
 import { createNotification } from '$lib/server/notifications.js';
 
 function resolveUserName(userId) {
@@ -35,23 +35,25 @@ export async function PATCH({ params, request }) {
 
 	const demande  = demandes[index];
 	const now      = new Date().toISOString();
-	const par      = () => resolveUserName(body.par) || 'agent';
+	// Résolution unique — évite de re-lire utilisateurs.json à chaque appel
+	const parName  = resolveUserName(body.par) || 'agent';
 	const acteur   = body.par || 'agent';
 	const role     = resolveRole(acteur);
+	const secLogs  = []; // collecte toutes les entrées, écriture unique en fin de handler
 
 	// ── Changement de statut ────────────────────────────────
 	if (body.statut && body.statut !== demande.statut) {
 		const ancienStatut = demande.statut;
 		demande.statut = body.statut;
-		demande.historique.push({ statut: body.statut, date: now, note: body.note || '', par: par() });
+		demande.historique.push({ statut: body.statut, date: now, note: body.note || '', par: parName });
 
-		appendSecurityLog('statut_change', role, {
-			demande_id:    params.id,
-			type_acte:     demande.type_acte,
-			ancien_statut: ancienStatut,
+		secLogs.push({ type: 'statut_change', acteur: role, details: {
+			demande_id:     params.id,
+			type_acte:      demande.type_acte,
+			ancien_statut:  ancienStatut,
 			nouveau_statut: body.statut,
-			par:           par()
-		});
+			par:            parName
+		}});
 
 		// Remboursement automatique si rejet + paiement en ligne
 		if (body.statut === 'rejetee') {
@@ -59,40 +61,40 @@ export async function PATCH({ params, request }) {
 			if (p?.statut === 'paye' && ['mobile_money', 'en_ligne', 'online'].includes(p.mode)) {
 				demande.paiement.remboursement = { statut: 'en_attente', date_demande: now, reference: null, date_remboursement: null, traite_par: null };
 				demande.historique.push({
-					statut: 'rejetee', date: now, type: 'remboursement', par: par(),
+					statut: 'rejetee', date: now, type: 'remboursement', par: parName,
 					note: `Remboursement initié — ${p.montant?.toLocaleString('fr-FR')} FCFA via ${p.mode === 'mobile_money' ? 'Mobile Money' : 'paiement en ligne'} (réf. ${p.reference || 'N/A'})`
 				});
 				createNotification('superviseur', 'remboursement', `Remboursement requis — dossier ${params.id} rejeté, ${p.montant?.toLocaleString('fr-FR')} FCFA à rembourser`, params.id);
-				appendSecurityLog('remboursement_initie', role, { demande_id: params.id, montant: p.montant, mode: p.mode });
+				secLogs.push({ type: 'remboursement_initie', acteur: role, details: { demande_id: params.id, montant: p.montant, mode: p.mode } });
 			}
 		}
 	}
 
 	// ── Réassignation d'agent ───────────────────────────────
 	if (body.agent_id) {
-		demande.agent_id = body.agent_id;
 		const nomAgent = resolveUserName(body.agent_id);
-		demande.historique.push({ statut: demande.statut, date: now, note: `Réassignée à ${nomAgent}`, par: par() });
+		demande.agent_id = body.agent_id;
+		demande.historique.push({ statut: demande.statut, date: now, note: `Réassignée à ${nomAgent}`, par: parName });
 		createNotification('agent', 'nouvelle_demande', `Dossier réassigné — ${params.id} vous a été confié par le superviseur`, params.id);
-		appendSecurityLog('reassignation', role, { demande_id: params.id, agent_id: body.agent_id, agent_nom: nomAgent, par: par() });
+		secLogs.push({ type: 'reassignation', acteur: role, details: { demande_id: params.id, agent_id: body.agent_id, agent_nom: nomAgent, par: parName } });
 	}
 
 	// ── Données de l'acte validé ────────────────────────────
 	if (body.acte) {
 		demande.acte = { ...(demande.acte || {}), ...body.acte };
-		appendSecurityLog('acte_valide', role, {
-			demande_id:     params.id,
-			type_acte:      demande.type_acte,
-			numero_acte:    body.acte.numero_acte || '',
-			officier_nom:   body.acte.officier_nom || '',
-			par:            par()
-		});
+		secLogs.push({ type: 'acte_valide', acteur: role, details: {
+			demande_id:   params.id,
+			type_acte:    demande.type_acte,
+			numero_acte:  body.acte.numero_acte || '',
+			officier_nom: body.acte.officier_nom || '',
+			par:          parName
+		}});
 	}
 
 	// ── Note interne ────────────────────────────────────────
 	if (body.note_interne) {
-		demande.historique.push({ statut: demande.statut, date: now, note: body.note_interne, par: par(), type: 'note' });
-		appendSecurityLog('note_interne', role, { demande_id: params.id, par: par() });
+		demande.historique.push({ statut: demande.statut, date: now, note: body.note_interne, par: parName, type: 'note' });
+		secLogs.push({ type: 'note_interne', acteur: role, details: { demande_id: params.id, par: parName } });
 	}
 
 	// ── Validation remboursement (superviseur) ──────────────
@@ -102,25 +104,25 @@ export async function PATCH({ params, request }) {
 			statut:             'effectue',
 			reference:          body.remboursement_valide.reference || null,
 			date_remboursement: now,
-			traite_par:         par()
+			traite_par:         parName
 		};
 		demande.historique.push({
-			statut: demande.statut, date: now, type: 'remboursement', par: par(),
+			statut: demande.statut, date: now, type: 'remboursement', par: parName,
 			note: `Remboursement effectué — ${demande.paiement.montant?.toLocaleString('fr-FR')} FCFA${body.remboursement_valide.reference ? ` · Réf. ${body.remboursement_valide.reference}` : ''}`
 		});
-		appendSecurityLog('remboursement_valide', role, {
+		secLogs.push({ type: 'remboursement_valide', acteur: role, details: {
 			demande_id: params.id,
 			montant:    demande.paiement.montant,
 			reference:  body.remboursement_valide.reference || null,
-			par:        par()
-		});
+			par:        parName
+		}});
 	}
 
 	// ── Paiement en mairie ──────────────────────────────────
 	if (body.paiement_valide) {
 		demande.paiement = { ...demande.paiement, statut: 'paye', mode: 'mairie' };
-		demande.historique.push({ statut: demande.statut, date: now, par: par(), note: `Paiement de ${demande.paiement.montant?.toLocaleString('fr-FR')} FCFA encaissé en mairie` });
-		appendSecurityLog('paiement_valide', role, { demande_id: params.id, montant: demande.paiement.montant, par: par() });
+		demande.historique.push({ statut: demande.statut, date: now, par: parName, note: `Paiement de ${demande.paiement.montant?.toLocaleString('fr-FR')} FCFA encaissé en mairie` });
+		secLogs.push({ type: 'paiement_valide', acteur: role, details: { demande_id: params.id, montant: demande.paiement.montant, par: parName } });
 	}
 
 	// ── Escalade ────────────────────────────────────────────
@@ -130,21 +132,22 @@ export async function PATCH({ params, request }) {
 			demande.historique.push({ statut: demande.statut, date: now, note: `Escalade ${body.escalade.level} : ${body.escalade.motif}`, par: body.escalade.par || 'agent' });
 			if (body.escalade.level === 'superviseur') createNotification('superviseur', 'escalade', `Escalade reçue — dossier ${params.id} nécessite votre intervention`, params.id);
 			else if (body.escalade.level === 'maire')  createNotification('maire', 'escalade_critique', `Cas critique — dossier ${params.id} escaladé au Maire pour décision`, params.id);
-			appendSecurityLog('escalade_ajout', resolveRole(body.escalade.par || acteur), {
+			secLogs.push({ type: 'escalade_ajout', acteur: resolveRole(body.escalade.par || acteur), details: {
 				demande_id: params.id,
 				level:      body.escalade.level,
 				motif:      body.escalade.motif,
-				par:        body.escalade.par || par()
-			});
+				par:        body.escalade.par || parName
+			}});
 		} else {
 			demande.historique.push({ statut: demande.statut, date: now, note: 'Escalade résolue', par: body.par || 'superviseur' });
 			createNotification('agent', 'info', `Escalade résolue — dossier ${params.id} a été traité par le superviseur`, params.id);
-			appendSecurityLog('escalade_resolue', role, { demande_id: params.id, par: par() });
+			secLogs.push({ type: 'escalade_resolue', acteur: role, details: { demande_id: params.id, par: parName } });
 		}
 	}
 
-	demande.updated_at  = now;
-	demandes[index]     = demande;
+	demande.updated_at = now;
+	demandes[index]    = demande;
 	writeDemandes(demandes);
+	batchSecurityLog(secLogs); // une seule lecture+écriture pour tous les événements
 	return json(demande);
 }

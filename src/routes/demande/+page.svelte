@@ -4,6 +4,7 @@
 	import { page } from '$app/stores';
 	import { downloadAttestationDepotPDF } from '$lib/utils/pdf.js';
 	import { toast } from '$lib/stores/toast.js';
+	import CommuneLogo from '$lib/components/CommuneLogo.svelte';
 
 	let currentStep = 1;
 	let modules = {};
@@ -345,13 +346,7 @@
 			</svg>
 		</a>
 		<div class="flex items-center gap-2">
-			{#if commune?.logo}
-				<img src={commune.logo} alt={commune.nom_app || 'Logo'} class="w-7 h-7 rounded-lg object-contain" />
-			{:else}
-				<div class="w-7 h-7 bg-primary-500 rounded-lg flex items-center justify-center">
-					<span class="text-white font-syne font-bold text-xs">{(commune?.nom_app || 'C')[0]}</span>
-				</div>
-			{/if}
+			<CommuneLogo {commune} size="w-7 h-7" />
 			<span class="font-syne font-semibold text-primary-600">{commune?.nom_app || 'CiviCI'}</span>
 		</div>
 		<span class="text-gray-200">|</span>

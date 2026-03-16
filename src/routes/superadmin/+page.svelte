@@ -3,6 +3,7 @@
 	import { goto } from '$app/navigation';
 	import { authRole } from '$lib/stores/auth.js';
 	import { TYPE_ACTE_LABELS, TYPE_ACTE_ICONS } from '$lib/utils/helpers.js';
+	import CommuneLogo from '$lib/components/CommuneLogo.svelte';
 
 	let activeTab = 'overview';
 	let loading = true;
@@ -169,61 +170,34 @@
 	let secTypeFilter = '';
 	let secClearConfirm = false;
 
-	const SEC_TYPE_LABELS = {
+	// label + color en un seul objet — évite la désynchronisation des deux maps
+	const SEC_TYPES = {
 		// Authentification
-		connexion:            'Connexion',
-		deconnexion:          'Déconnexion',
+		connexion:            { label: 'Connexion',             color: 'bg-green-100 text-green-700' },
+		deconnexion:          { label: 'Déconnexion',           color: 'bg-gray-100 text-gray-600' },
 		// Administration système
-		module_toggle:        'Module activé/désactivé',
-		settings_change:      'Paramètres globaux',
-		role_settings_change: 'Paramètres rôle',
-		param_lock:           'Verrouillage param',
-		param_unlock:         'Déverrouillage param',
-		user_add:             'Ajout utilisateur',
-		user_update:          'Modif utilisateur',
-		user_toggle:          'Activ. utilisateur',
-		template_upload:      'Modèle chargé',
-		template_delete:      'Modèle supprimé',
-		identite_change:      'Identité mairie',
-		journal_efface:       'Journal effacé',
+		module_toggle:        { label: 'Module activé/désactivé', color: 'bg-blue-100 text-blue-700' },
+		settings_change:      { label: 'Paramètres globaux',    color: 'bg-indigo-100 text-indigo-700' },
+		role_settings_change: { label: 'Paramètres rôle',       color: 'bg-violet-100 text-violet-700' },
+		param_lock:           { label: 'Verrouillage param',    color: 'bg-orange-100 text-orange-700' },
+		param_unlock:         { label: 'Déverrouillage param',  color: 'bg-amber-100 text-amber-700' },
+		user_add:             { label: 'Ajout utilisateur',     color: 'bg-teal-100 text-teal-700' },
+		user_update:          { label: 'Modif utilisateur',     color: 'bg-cyan-100 text-cyan-700' },
+		user_toggle:          { label: 'Activ. utilisateur',    color: 'bg-sky-100 text-sky-700' },
+		template_upload:      { label: 'Modèle chargé',         color: 'bg-purple-100 text-purple-700' },
+		template_delete:      { label: 'Modèle supprimé',       color: 'bg-red-100 text-red-600' },
+		identite_change:      { label: 'Identité mairie',       color: 'bg-primary-100 text-primary-700' },
+		journal_efface:       { label: 'Journal effacé',        color: 'bg-red-200 text-red-800' },
 		// Actions dossiers (agent / superviseur / maire)
-		statut_change:        'Changement statut',
-		note_interne:         'Note interne',
-		acte_valide:          'Acte validé',
-		escalade_ajout:       'Escalade',
-		escalade_resolue:     'Escalade résolue',
-		reassignation:        'Réassignation',
-		paiement_valide:      'Paiement validé',
-		remboursement_initie: 'Remboursement initié',
-		remboursement_valide: 'Remboursement effectué'
-	};
-	const SEC_TYPE_COLORS = {
-		// Authentification
-		connexion:            'bg-green-100 text-green-700',
-		deconnexion:          'bg-gray-100 text-gray-600',
-		// Administration système
-		module_toggle:        'bg-blue-100 text-blue-700',
-		settings_change:      'bg-indigo-100 text-indigo-700',
-		role_settings_change: 'bg-violet-100 text-violet-700',
-		param_lock:           'bg-orange-100 text-orange-700',
-		param_unlock:         'bg-amber-100 text-amber-700',
-		user_add:             'bg-teal-100 text-teal-700',
-		user_update:          'bg-cyan-100 text-cyan-700',
-		user_toggle:          'bg-sky-100 text-sky-700',
-		template_upload:      'bg-purple-100 text-purple-700',
-		template_delete:      'bg-red-100 text-red-600',
-		identite_change:      'bg-primary-100 text-primary-700',
-		journal_efface:       'bg-red-200 text-red-800',
-		// Actions dossiers
-		statut_change:        'bg-blue-100 text-blue-800',
-		note_interne:         'bg-slate-100 text-slate-700',
-		acte_valide:          'bg-emerald-100 text-emerald-700',
-		escalade_ajout:       'bg-orange-100 text-orange-700',
-		escalade_resolue:     'bg-lime-100 text-lime-700',
-		reassignation:        'bg-cyan-100 text-cyan-800',
-		paiement_valide:      'bg-green-100 text-green-800',
-		remboursement_initie: 'bg-yellow-100 text-yellow-700',
-		remboursement_valide: 'bg-amber-100 text-amber-800'
+		statut_change:        { label: 'Changement statut',     color: 'bg-blue-100 text-blue-800' },
+		note_interne:         { label: 'Note interne',          color: 'bg-slate-100 text-slate-700' },
+		acte_valide:          { label: 'Acte validé',           color: 'bg-emerald-100 text-emerald-700' },
+		escalade_ajout:       { label: 'Escalade',              color: 'bg-orange-100 text-orange-700' },
+		escalade_resolue:     { label: 'Escalade résolue',      color: 'bg-lime-100 text-lime-700' },
+		reassignation:        { label: 'Réassignation',         color: 'bg-cyan-100 text-cyan-800' },
+		paiement_valide:      { label: 'Paiement validé',       color: 'bg-green-100 text-green-800' },
+		remboursement_initie: { label: 'Remboursement initié',  color: 'bg-yellow-100 text-yellow-700' },
+		remboursement_valide: { label: 'Remboursement effectué', color: 'bg-amber-100 text-amber-800' }
 	};
 	const SEC_ACTEUR_ICONS = {
 		superadmin:  '🔐',
@@ -444,13 +418,7 @@
 	<div class="max-w-7xl mx-auto px-4 sm:px-6">
 		<div class="flex items-center justify-between h-14">
 			<div class="flex items-center gap-3">
-				{#if commune?.logo}
-					<img src={commune.logo} alt={commune.nom_app || 'Logo'} class="w-8 h-8 rounded-lg object-contain bg-white/10" />
-				{:else}
-					<div class="w-8 h-8 bg-red-600 rounded-lg flex items-center justify-center">
-						<span class="text-white font-syne font-bold text-sm">🔐</span>
-					</div>
-				{/if}
+				<CommuneLogo {commune} fallbackBg="bg-red-600" fallbackContent="🔐" />
 				<div>
 					<span class="font-syne font-bold text-white">{commune?.nom_app || 'CiviCI'}</span>
 					<span class="text-gray-400 text-xs ml-2">Super Admin</span>
@@ -1244,8 +1212,8 @@
 				/>
 				<select bind:value={secTypeFilter} class="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-300">
 					<option value="">Tous les types</option>
-					{#each Object.entries(SEC_TYPE_LABELS) as [k, v]}
-						<option value={k}>{v}</option>
+					{#each Object.entries(SEC_TYPES) as [k, t]}
+						<option value={k}>{t.label}</option>
 					{/each}
 				</select>
 				<span class="text-xs text-gray-400 self-center">{filteredSecLog.length} entrée{filteredSecLog.length !== 1 ? 's' : ''}</span>
@@ -1285,8 +1253,8 @@
 											{new Date(entry.date).toLocaleString('fr-FR', { day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit', second:'2-digit' })}
 										</td>
 										<td class="px-4 py-3">
-											<span class="text-xs font-medium px-2 py-0.5 rounded-full {SEC_TYPE_COLORS[entry.type] || 'bg-gray-100 text-gray-600'}">
-												{SEC_TYPE_LABELS[entry.type] || entry.type}
+											<span class="text-xs font-medium px-2 py-0.5 rounded-full {SEC_TYPES[entry.type]?.color || 'bg-gray-100 text-gray-600'}">
+												{SEC_TYPES[entry.type]?.label || entry.type}
 											</span>
 										</td>
 										<td class="px-4 py-3">
@@ -1361,8 +1329,8 @@
 			<div class="bg-white rounded-2xl border border-gray-100 p-5">
 				<h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Légende des événements</h3>
 				<div class="flex flex-wrap gap-2">
-					{#each Object.entries(SEC_TYPE_LABELS) as [k, v]}
-						<span class="text-xs px-2 py-1 rounded-full font-medium {SEC_TYPE_COLORS[k] || 'bg-gray-100 text-gray-600'}">{v}</span>
+					{#each Object.entries(SEC_TYPES) as [k, t]}
+						<span class="text-xs px-2 py-1 rounded-full font-medium {t.color}">{t.label}</span>
 					{/each}
 				</div>
 			</div>

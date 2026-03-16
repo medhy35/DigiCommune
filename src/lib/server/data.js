@@ -67,3 +67,26 @@ export function appendSecurityLog(type, acteur, details = {}) {
 	// Garder les 2000 dernières entrées pour éviter une croissance illimitée
 	writeSecurityLog(log.slice(0, 2000));
 }
+
+/**
+ * Ajoute plusieurs entrées dans le journal de sécurité en une seule lecture/écriture.
+ * À utiliser quand un seul handler génère plusieurs événements.
+ * @param {{ type: string, acteur: string, details?: object }[]} entries
+ */
+export function batchSecurityLog(entries) {
+	if (!entries.length) return;
+	const log = readSecurityLog();
+	const now = new Date().toISOString();
+	// Insérer en ordre chronologique (le dernier de la liste = le plus récent)
+	for (let i = entries.length - 1; i >= 0; i--) {
+		const { type, acteur, details = {} } = entries[i];
+		log.unshift({
+			id:     `sec_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+			date:   now,
+			type,
+			acteur,
+			details
+		});
+	}
+	writeSecurityLog(log.slice(0, 2000));
+}

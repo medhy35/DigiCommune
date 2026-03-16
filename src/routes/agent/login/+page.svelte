@@ -2,6 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { authRole } from '$lib/stores/auth.js';
 	import { commune } from '$lib/stores/commune.js';
+	import CommuneLogo from '$lib/components/CommuneLogo.svelte';
 	import { onMount } from 'svelte';
 
 	const ROLE_ROUTES = {
@@ -69,13 +70,7 @@
 	<header class="bg-white border-b border-gray-100 shadow-sm">
 		<div class="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
 			<a href="/" class="flex items-center gap-2">
-				{#if $commune?.logo}
-					<img src={$commune.logo} alt={$commune.nom_app || 'Logo'} class="w-9 h-9 rounded-xl object-contain shadow-sm" />
-				{:else}
-					<div class="w-9 h-9 bg-primary-500 rounded-xl flex items-center justify-center shadow-sm">
-						<span class="text-white font-syne font-bold">{($commune?.nom_app || 'C')[0]}</span>
-					</div>
-				{/if}
+				<CommuneLogo commune={$commune} size="w-9 h-9" rounded="rounded-xl" shadow="shadow-sm" />
 				<div>
 					<span class="font-syne font-bold text-primary-600">{$commune?.nom_app || 'CiviCI'}</span>
 					<p class="text-xs text-gray-400 leading-tight">Espace Back-office</p>
