@@ -91,6 +91,18 @@ export async function PATCH({ params, request }) {
 		}});
 	}
 
+	// ── Demande de compléments ──────────────────────────────
+	if (body.complement_demande) {
+		demande.complement_demande = { ...body.complement_demande, date: now, par: parName };
+		// Le changement de statut (complements_requis) est géré par le bloc statut_change ci-dessus
+		secLogs.push({ type: 'complement_demande', acteur: role, details: {
+			demande_id: params.id,
+			motif:      body.complement_demande.motif || '',
+			items:      body.complement_demande.items || [],
+			par:        parName
+		}});
+	}
+
 	// ── Note interne ────────────────────────────────────────
 	if (body.note_interne) {
 		demande.historique.push({ statut: demande.statut, date: now, note: body.note_interne, par: parName, type: 'note' });
