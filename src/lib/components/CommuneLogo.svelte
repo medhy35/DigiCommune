@@ -1,7 +1,7 @@
 <script>
 	/** Commune object with optional `logo` (URL) and `nom_app` (string) */
 	export let commune = null;
-	/** Tailwind w-*/h-* classes, e.g. "w-8 h-8" */
+	/** Tailwind w-N h-N classes, e.g. "w-8 h-8" */
 	export let size = 'w-8 h-8';
 	/** Tailwind rounded-* class */
 	export let rounded = 'rounded-lg';
