@@ -1,5 +1,6 @@
 import { json } from '@sveltejs/kit';
 import { readSettings, writeSettings, readUsers, writeUsers, readDemandes, appendSecurityLog } from '$lib/server/data.js';
+import { createNotification } from '$lib/server/notifications.js';
 
 /** GET /api/admin → stats système + config globale + utilisateurs */
 export function GET() {
@@ -89,6 +90,7 @@ export async function POST({ request }) {
 				nom:   `${user.prenom} ${user.nom}`,
 				email: user.email
 			});
+			createNotification(role, 'bienvenue', `Bienvenue ${user.prenom} ${user.nom} ! Votre compte ${role} a été créé.`, null);
 			return json({ ok: true, user: newUser });
 		}
 

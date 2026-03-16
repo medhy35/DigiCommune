@@ -2,19 +2,34 @@ import { json } from '@sveltejs/kit';
 import { readSecurityLog, writeSecurityLog, appendSecurityLog } from '$lib/server/data.js';
 
 const TYPE_LABELS = {
-	connexion:           'Connexion',
-	deconnexion:         'Déconnexion',
-	module_toggle:       'Module activé/désactivé',
-	settings_change:     'Paramètres modifiés',
-	role_settings_change:'Paramètres rôle modifiés',
-	param_lock:          'Paramètre verrouillé',
-	param_unlock:        'Paramètre déverrouillé',
-	user_add:            'Utilisateur ajouté',
-	user_update:         'Utilisateur modifié',
-	user_toggle:         'Utilisateur activé/désactivé',
-	template_upload:     'Modèle de document chargé',
-	template_delete:     'Modèle de document supprimé',
-	identite_change:     'Identité mairie modifiée'
+	// Authentification
+	connexion:              'Connexion',
+	deconnexion:            'Déconnexion',
+	// Gestion utilisateurs
+	user_add:               'Utilisateur ajouté',
+	user_update:            'Utilisateur modifié',
+	user_toggle:            'Utilisateur activé/désactivé',
+	// Configuration système (superadmin)
+	module_toggle:          'Module activé/désactivé',
+	settings_change:        'Paramètres modifiés',
+	role_settings_change:   'Paramètres rôle modifiés',
+	param_lock:             'Paramètre verrouillé',
+	param_unlock:           'Paramètre déverrouillé',
+	identite_change:        'Identité mairie modifiée',
+	template_upload:        'Modèle de document chargé',
+	template_delete:        'Modèle de document supprimé',
+	journal_efface:         'Journal de sécurité effacé',
+	// Actions sur les dossiers
+	statut_change:          'Changement de statut',
+	reassignation:          'Réassignation de dossier',
+	acte_valide:            'Acte validé',
+	complement_demande:     'Compléments demandés',
+	note_interne:           'Note interne ajoutée',
+	escalade_ajout:         'Escalade créée',
+	escalade_resolue:       'Escalade résolue',
+	paiement_valide:        'Paiement validé',
+	remboursement_initie:   'Remboursement initié',
+	remboursement_valide:   'Remboursement effectué'
 };
 
 /**
