@@ -513,7 +513,7 @@
 	{/if}
 
 	<!-- ═══════════════════════════════════════════════════════ -->
-	<!-- TAB: TOUTES LES DEMANDES (lecture seule)                -->
+	<!-- TAB: TOUTES LES DEMANDES                               -->
 	<!-- ═══════════════════════════════════════════════════════ -->
 	{#if activeTab === 'toutes'}
 		{#if loading}
@@ -524,34 +524,69 @@
 				</svg>
 			</div>
 		{:else}
-			<div class="card overflow-hidden p-0">
-				<div class="overflow-x-auto">
-					<table class="w-full text-sm">
-						<thead class="bg-gray-50 border-b border-gray-100">
-							<tr>
-								<th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Dossier</th>
-								<th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden sm:table-cell">Type</th>
-								<th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Demandeur</th>
-								<th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden md:table-cell">Date</th>
-								<th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Statut</th>
-							</tr>
-						</thead>
-						<tbody class="divide-y divide-gray-50">
-							{#each allDemandes as d}
-								<tr class="hover:bg-gray-50 transition-colors {isEscaladee(d) ? 'bg-orange-50/50' : ''}">
-									<td class="px-4 py-3 font-mono text-xs font-semibold text-gray-800">{d.id}</td>
-									<td class="px-4 py-3 hidden sm:table-cell">
-										<span>{TYPE_ACTE_ICONS[d.type_acte]}</span>
-										<span class="text-gray-600 ml-1">{TYPE_ACTE_LABELS[d.type_acte]}</span>
-									</td>
-									<td class="px-4 py-3 text-gray-700">{d.demandeur.prenom} {d.demandeur.nom}</td>
-									<td class="px-4 py-3 text-gray-500 hidden md:table-cell">{formatDate(d.created_at)}</td>
-									<td class="px-4 py-3"><StatusBadge demande={d} /></td>
+			<div class="grid {selectedDemande ? 'lg:grid-cols-2' : ''} gap-4 items-start">
+				<!-- Liste -->
+				<div class="card overflow-hidden p-0">
+					<div class="overflow-x-auto">
+						<table class="w-full text-sm">
+							<thead class="bg-gray-50 border-b border-gray-100">
+								<tr>
+									<th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Dossier</th>
+									<th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden sm:table-cell">Type</th>
+									<th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Demandeur</th>
+									<th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden md:table-cell">Date</th>
+									<th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Statut</th>
 								</tr>
-							{/each}
-						</tbody>
-					</table>
+							</thead>
+							<tbody class="divide-y divide-gray-50">
+								{#each allDemandes as d}
+									<!-- svelte-ignore a11y-click-events-have-key-events a11y-no-noninteractive-element-interactions -->
+									<tr
+										on:click={() => { selectedDemande = d; actionDone = null; }}
+										class="cursor-pointer hover:bg-primary-50/40 transition-colors
+											{isEscaladee(d) ? 'bg-orange-50/50' : ''}
+											{selectedDemande?.id === d.id ? 'bg-primary-50 border-l-2 border-primary-400' : ''}"
+									>
+										<td class="px-4 py-3 font-mono text-xs font-semibold text-gray-800">{d.id}</td>
+										<td class="px-4 py-3 hidden sm:table-cell">
+											<span>{TYPE_ACTE_ICONS[d.type_acte]}</span>
+											<span class="text-gray-600 ml-1">{TYPE_ACTE_LABELS[d.type_acte]}</span>
+										</td>
+										<td class="px-4 py-3 text-gray-700">{d.demandeur.prenom} {d.demandeur.nom}</td>
+										<td class="px-4 py-3 text-gray-500 hidden md:table-cell">{formatDate(d.created_at)}</td>
+										<td class="px-4 py-3"><StatusBadge demande={d} /></td>
+									</tr>
+								{/each}
+							</tbody>
+						</table>
+					</div>
 				</div>
+
+				<!-- Détail -->
+				{#if selectedDemande}
+					<div class="space-y-3 sticky top-20">
+						<div class="flex items-center justify-between">
+							<h3 class="font-syne font-semibold text-gray-700 text-sm">Détail du dossier</h3>
+							<button
+								on:click={() => selectedDemande = null}
+								class="text-gray-400 hover:text-gray-600 p-1 hover:bg-gray-100 rounded-lg transition-colors"
+								title="Fermer"
+							>
+								<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+								</svg>
+							</button>
+						</div>
+						<DemandeDetailPanel
+							demande={selectedDemande}
+							compact={true}
+							allowNotes={true}
+							currentUserId="maire_001"
+							currentUserRole="maire"
+							on:addNote={handleAddNote}
+						/>
+					</div>
+				{/if}
 			</div>
 		{/if}
 	{/if}
