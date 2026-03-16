@@ -90,3 +90,9 @@ export function batchSecurityLog(entries) {
 	}
 	writeSecurityLog(log.slice(0, 2000));
 }
+
+// ── Rendez-vous ───────────────────────────────────────────────────────
+export function readRendezVous() {
+	try { return readJSON('rendez_vous.json'); } catch { return []; }
+}
+export const writeRendezVous = (r) => writeJSON('rendez_vous.json', r);

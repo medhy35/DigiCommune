@@ -40,6 +40,12 @@ Permet aux citoyens de soumettre des demandes d'actes civils en ligne, et aux ag
 - **Journal d'audit** : Historique complet de toutes les actions sur les dossiers
 - **Journal de sécurité** : Historique des événements système (connexions, modifications, suppressions)
 
+### Module Rendez-vous (RDV)
+Module indépendant activable/désactivable. Quand actif :
+- **Citoyen** : sur la page de suivi, quand son acte est prêt (statut `disponible`, mode `retrait`), peut prendre un rendez-vous → choix de la date + créneau horaire disponible
+- **Agent** : panneau RDV sur le tableau de bord (filtres Aujourd'hui / À venir / Tous), confirmation, marquage comme effectué, annulation
+- **Super Admin** : configuration complète (horaires, durée des créneaux, max par créneau, jours ouvrables, lieu, délai min/max)
+
 ### Maire
 - **Équipe** : Ajout, modification et désactivation des agents et superviseurs
 
@@ -48,13 +54,14 @@ Permet aux citoyens de soumettre des demandes d'actes civils en ligne, et aux ag
 | Fichier | Contenu |
 |---------|---------|
 | `commune.json` | Identité de la mairie (nom, logo, couleur, slogan, horaires…) |
-| `settings.json` | Paramètres système (SLA, frais, modules, verrouillages…) |
+| `settings.json` | Paramètres système (SLA, frais, modules, RDV, verrouillages…) |
 | `demandes.json` | Toutes les demandes civiles |
 | `utilisateurs.json` | Agents, superviseurs, maire |
 | `notifications.json` | Notifications internes (agents, superviseurs, maire) |
 | `audit.json` | Journal d'audit des dossiers |
 | `templates.json` | Modèles de documents uploadés |
 | `security_log.json` | Journal de sécurité (connexions, actions admin, événements système) |
+| `rendez_vous.json` | Rendez-vous de retrait en mairie |
 
 ## Journal de sécurité — types d'événements
 

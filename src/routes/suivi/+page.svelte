@@ -3,7 +3,7 @@
 	import { page } from '$app/stores';
 	import Timeline from '$lib/components/Timeline.svelte';
 	import StatusBadge from '$lib/components/StatusBadge.svelte';
-	import { TYPE_ACTE_LABELS, TYPE_ACTE_ICONS, CONCERNANT_LABELS, MODE_RECEPTION_LABELS, formatDateTime } from '$lib/utils/helpers.js';
+	import { TYPE_ACTE_LABELS, TYPE_ACTE_ICONS, CONCERNANT_LABELS, MODE_RECEPTION_LABELS, formatDateTime, RDV_STATUT_LABELS, RDV_STATUT_COLORS } from '$lib/utils/helpers.js';
 	import { downloadAttestationDepotPDF, downloadRecuPaiementPDF, downloadSuiviCompletPDF } from '$lib/utils/pdf.js';
 
 	let numero = '';
@@ -17,6 +17,19 @@
 	let genRecuLoading = false;
 	let genSuiviLoading = false;
 
+	// Rendez-vous
+	let rdvModuleActif = false;
+	let rdvCfg         = null;
+	let rdvExistant    = null;
+	let rdvLoading     = false;
+	let rdvDate        = '';
+	let rdvMinDate     = '';
+	let rdvMaxDate     = '';
+	let rdvCreneaux    = [];
+	let rdvHeure       = '';
+	let rdvBooking     = false;
+	let rdvError       = '';
+
 	onMount(async () => {
 		// Vient de la confirmation de demande (state passé sans paramètre URL)
 		const fromState = $page.state?.demande;
@@ -24,8 +37,20 @@
 			demande = fromState;
 			numero = fromState.id;
 		}
-		const cRes = await fetch('/api/commune');
+		const [cRes, sRes] = await Promise.all([fetch('/api/commune'), fetch('/api/settings?role=global')]);
 		if (cRes.ok) commune = await cRes.json();
+		if (sRes.ok) {
+			const sd = await sRes.json();
+			rdvModuleActif = sd.settings?.global?.modules?.rdv === true;
+			rdvCfg = sd.settings?.rdv || null;
+			const delay = rdvCfg?.delai_min_jours ?? 1;
+			const maxD  = rdvCfg?.delai_max_jours ?? 30;
+			const d1 = new Date(); d1.setDate(d1.getDate() + delay);
+			const d2 = new Date(); d2.setDate(d2.getDate() + maxD);
+			rdvMinDate = d1.toISOString().slice(0,10);
+			rdvMaxDate = d2.toISOString().slice(0,10);
+		}
+		if (fromState && rdvModuleActif) await loadRdvForDemande(fromState);
 	});
 
 	async function handleSearch() {
@@ -39,6 +64,7 @@
 			const d = await res.json();
 			if (d.demandeur.nom.toLowerCase() === nom.trim().toLowerCase()) {
 				demande = d;
+				if (rdvModuleActif) await loadRdvForDemande(d);
 			} else {
 				searchError = 'Aucune demande trouvée avec ces informations. Vérifiez votre numéro et votre nom de famille.';
 			}
@@ -53,6 +79,55 @@
 		numero = '';
 		nom = '';
 		searchError = '';
+	}
+
+	async function loadRdvForDemande(d) {
+		if (!d || d.mode_reception !== 'retrait' || d.statut !== 'disponible') return;
+		rdvLoading = true;
+		const res = await fetch(`/api/rdv?demande_id=${d.id}`);
+		if (res.ok) {
+			const list = await res.json();
+			rdvExistant = list.find(r => r.statut !== 'annule') || null;
+		}
+		rdvLoading = false;
+	}
+
+	async function loadCreneaux() {
+		if (!rdvDate) return;
+		rdvHeure = '';
+		rdvCreneaux = [];
+		const res = await fetch(`/api/rdv?creneaux=${rdvDate}`);
+		if (res.ok) rdvCreneaux = await res.json();
+	}
+
+	async function prendreRdv() {
+		if (!rdvDate || !rdvHeure) return;
+		rdvBooking = true;
+		rdvError   = '';
+		const res = await fetch('/api/rdv', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				demande_id: demande.id,
+				demandeur:  { nom: demande.demandeur.nom, prenom: demande.demandeur.prenom, telephone: demande.demandeur.telephone },
+				date_rdv:   rdvDate,
+				heure_rdv:  rdvHeure
+			})
+		});
+		if (res.ok) {
+			rdvExistant = await res.json();
+		} else {
+			const err = await res.json();
+			rdvError = err.error || 'Erreur lors de la prise de rendez-vous.';
+		}
+		rdvBooking = false;
+	}
+
+	async function annulerRdv() {
+		if (!rdvExistant) return;
+		await fetch(`/api/rdv/${rdvExistant.id}?acteur=citoyen`, { method: 'DELETE' });
+		rdvExistant = null;
+		rdvDate = ''; rdvHeure = ''; rdvCreneaux = [];
 	}
 
 	async function genAttestation() {
@@ -233,13 +308,108 @@
 
 	<!-- Messages disponibilité -->
 	{#if demande.statut === 'disponible' && demande.mode_reception === 'retrait'}
-		<div class="bg-primary-50 border border-primary-200 rounded-xl p-4 flex gap-3 mb-4">
-			<span class="text-2xl">🏛️</span>
-			<div>
-				<p class="font-semibold text-primary-800">Votre acte est prêt !</p>
-				<p class="text-sm text-primary-700 mt-1">Venez le retirer à la mairie muni de votre pièce d'identité.</p>
+		{#if rdvModuleActif}
+			<!-- ── Module RDV actif ── -->
+			{#if rdvLoading}
+				<div class="bg-gray-50 rounded-xl p-4 flex items-center gap-3 mb-4 text-sm text-gray-400 animate-pulse">
+					<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+					Vérification des rendez-vous…
+				</div>
+			{:else if rdvExistant}
+				<!-- RDV existant -->
+				<div class="bg-green-50 border border-green-200 rounded-xl p-4 mb-4">
+					<div class="flex items-start gap-3">
+						<span class="text-2xl">📅</span>
+						<div class="flex-1">
+							<p class="font-semibold text-green-800">Rendez-vous confirmé !</p>
+							<p class="text-sm text-green-700 mt-1">
+								Le {new Date(rdvExistant.date_rdv + 'T12:00:00').toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long' })}
+								à {rdvExistant.heure_rdv}
+								— {rdvExistant.lieu || 'Mairie'}
+							</p>
+							<span class="inline-block mt-2 text-xs px-2 py-0.5 rounded-full font-medium {RDV_STATUT_COLORS[rdvExistant.statut]}">
+								{RDV_STATUT_LABELS[rdvExistant.statut] || rdvExistant.statut}
+							</span>
+						</div>
+					</div>
+					{#if rdvExistant.statut !== 'effectue' && rdvExistant.statut !== 'annule'}
+						<button on:click={annulerRdv} class="mt-3 text-xs text-red-500 hover:text-red-700 underline">Annuler ce rendez-vous</button>
+					{/if}
+				</div>
+			{:else}
+				<!-- Formulaire de prise de RDV -->
+				<div class="bg-primary-50 border border-primary-200 rounded-xl p-4 mb-4">
+					<div class="flex items-start gap-3 mb-4">
+						<span class="text-2xl">🏛️</span>
+						<div>
+							<p class="font-semibold text-primary-800">Votre acte est prêt !</p>
+							<p class="text-sm text-primary-700 mt-1">Prenez rendez-vous pour venir le retirer à la mairie.</p>
+						</div>
+					</div>
+
+					<!-- Choix de la date -->
+					<div class="space-y-3">
+						<div>
+							<label class="text-xs font-semibold text-primary-700 block mb-1">Choisir une date</label>
+							<input type="date" bind:value={rdvDate} min={rdvMinDate} max={rdvMaxDate}
+								on:change={loadCreneaux}
+								class="input-field text-sm bg-white" />
+						</div>
+
+						<!-- Créneaux horaires -->
+						{#if rdvDate && rdvCreneaux.length === 0}
+							<p class="text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2">La mairie est fermée ce jour-là. Veuillez choisir un autre jour.</p>
+						{:else if rdvCreneaux.length > 0}
+							<div>
+								<label class="text-xs font-semibold text-primary-700 block mb-2">Choisir un créneau</label>
+								<div class="flex flex-wrap gap-2">
+									{#each rdvCreneaux as slot}
+										<button
+											on:click={() => slot.disponible && (rdvHeure = slot.heure)}
+											disabled={!slot.disponible}
+											class="px-3 py-1.5 rounded-lg text-sm font-medium border-2 transition-all
+												{rdvHeure === slot.heure
+													? 'border-primary-500 bg-primary-500 text-white'
+													: slot.disponible
+														? 'border-primary-300 text-primary-700 hover:bg-primary-100'
+														: 'border-gray-200 text-gray-300 cursor-not-allowed bg-gray-50'}"
+										>
+											{slot.heure}
+											{#if !slot.disponible}<span class="text-xs ml-1">Complet</span>{/if}
+										</button>
+									{/each}
+								</div>
+							</div>
+						{/if}
+
+						{#if rdvError}
+							<p class="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">{rdvError}</p>
+						{/if}
+
+						{#if rdvDate && rdvHeure}
+							<button on:click={prendreRdv} disabled={rdvBooking}
+								class="btn-primary w-full justify-center py-2.5 text-sm mt-1">
+								{#if rdvBooking}
+									<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+									Réservation en cours…
+								{:else}
+									📅 Confirmer le rendez-vous du {new Date(rdvDate + 'T12:00:00').toLocaleDateString('fr-FR', { day:'numeric', month:'long' })} à {rdvHeure}
+								{/if}
+							</button>
+						{/if}
+					</div>
+				</div>
+			{/if}
+		{:else}
+			<!-- Module RDV désactivé : message classique -->
+			<div class="bg-primary-50 border border-primary-200 rounded-xl p-4 flex gap-3 mb-4">
+				<span class="text-2xl">🏛️</span>
+				<div>
+					<p class="font-semibold text-primary-800">Votre acte est prêt !</p>
+					<p class="text-sm text-primary-700 mt-1">Venez le retirer à la mairie muni de votre pièce d'identité.</p>
+				</div>
 			</div>
-		</div>
+		{/if}
 	{/if}
 	{#if demande.statut === 'disponible' && demande.mode_reception === 'whatsapp'}
 		<div class="bg-primary-50 border border-primary-200 rounded-xl p-4 flex gap-3 mb-4">

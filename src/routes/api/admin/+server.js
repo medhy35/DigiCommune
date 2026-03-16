@@ -62,6 +62,13 @@ export async function POST({ request }) {
 			return json({ ok: true });
 		}
 
+		case 'save_rdv_settings': {
+			settings.rdv = { ...settings.rdv, ...body.data };
+			writeSettings(settings);
+			appendSecurityLog('rdv_settings_change', 'superadmin', { champs: Object.keys(body.data) });
+			return json({ ok: true });
+		}
+
 		case 'lock_param': {
 			if (!settings.global.locked_params.includes(body.param)) {
 				settings.global.locked_params.push(body.param);

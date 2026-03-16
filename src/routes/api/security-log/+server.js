@@ -29,7 +29,12 @@ const TYPE_LABELS = {
 	escalade_resolue:       'Escalade résolue',
 	paiement_valide:        'Paiement validé',
 	remboursement_initie:   'Remboursement initié',
-	remboursement_valide:   'Remboursement effectué'
+	remboursement_valide:   'Remboursement effectué',
+	// Rendez-vous
+	rdv_pris:              'RDV pris par le citoyen',
+	rdv_update:            'RDV mis à jour',
+	rdv_annule:            'RDV annulé',
+	rdv_settings_change:   'Paramètres RDV modifiés'
 };
 
 /**

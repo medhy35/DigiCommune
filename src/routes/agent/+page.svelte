@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import StatusBadge from '$lib/components/StatusBadge.svelte';
-	import { TYPE_ACTE_LABELS, TYPE_ACTE_ICONS, formatDateTime, timeAgo, isEscaladee, isSLADepassee } from '$lib/utils/helpers.js';
+	import { TYPE_ACTE_LABELS, TYPE_ACTE_ICONS, formatDateTime, timeAgo, isEscaladee, isSLADepassee, RDV_STATUT_LABELS, RDV_STATUT_COLORS } from '$lib/utils/helpers.js';
 
 	let demandes = [];
 	let loading = true;
@@ -10,9 +10,51 @@
 	let filterType = '';
 	let searchTerm = '';
 
+	let rdvList    = [];
+	let rdvLoading = false;
+	let rdvView    = 'aujd'; // 'aujd' | 'avenir' | 'tous'
+	let rdvModuleActif = false;
+	let showRdvPanel = false;
+
 	onMount(async () => {
-		await loadDemandes();
+		await Promise.all([loadDemandes(), loadRdv()]);
 	});
+
+	async function loadRdv() {
+		rdvLoading = true;
+		const [rRes, sRes] = await Promise.all([fetch('/api/rdv'), fetch('/api/settings?role=global')]);
+		if (rRes.ok) rdvList = await rRes.json();
+		if (sRes.ok) {
+			const sd = await sRes.json();
+			rdvModuleActif = sd.settings?.global?.modules?.rdv === true;
+		}
+		rdvLoading = false;
+	}
+
+	async function updateRdvStatut(id, statut) {
+		await fetch(`/api/rdv/${id}`, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ statut }) });
+		await loadRdv();
+	}
+
+	async function annulerRdvAgent(id) {
+		await fetch(`/api/rdv/${id}?acteur=agent`, { method: 'DELETE' });
+		await loadRdv();
+	}
+
+	function rdvDateLabel(dateStr) {
+		const today = new Date().toISOString().slice(0,10);
+		const tom   = new Date(Date.now() + 86400000).toISOString().slice(0,10);
+		if (dateStr === today) return "Aujourd'hui";
+		if (dateStr === tom)   return 'Demain';
+		return new Date(dateStr + 'T12:00:00').toLocaleDateString('fr-FR', { weekday:'short', day:'numeric', month:'short' });
+	}
+
+	$: rdvFiltered = (() => {
+		const today = new Date().toISOString().slice(0,10);
+		if (rdvView === 'aujd')   return rdvList.filter(r => r.date_rdv === today && r.statut !== 'annule');
+		if (rdvView === 'avenir') return rdvList.filter(r => r.date_rdv >= today && r.statut !== 'annule' && r.statut !== 'effectue');
+		return rdvList;
+	})();
 
 	async function loadDemandes() {
 		loading = true;
@@ -74,6 +116,68 @@
 			</div>
 		{/each}
 	</div>
+
+	<!-- ── Panneau RDV ─────────────────────────────────────────────── -->
+	{#if rdvModuleActif}
+		<div class="card mb-6">
+			<div class="flex items-center justify-between mb-3">
+				<h2 class="font-syne font-semibold text-gray-700 flex items-center gap-2">
+					📅 Rendez-vous
+					{#if rdvFiltered.filter(r => r.statut === 'en_attente').length > 0}
+						<span class="bg-amber-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+							{rdvFiltered.filter(r => r.statut === 'en_attente').length}
+						</span>
+					{/if}
+				</h2>
+				<div class="flex gap-2">
+					{#each [['aujd', "Aujourd'hui"], ['avenir', 'À venir'], ['tous', 'Tous']] as [v, l]}
+						<button on:click={() => rdvView = v}
+							class="text-xs px-3 py-1 rounded-lg font-medium transition-all
+								{rdvView === v ? 'bg-primary-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}">
+							{l}
+						</button>
+					{/each}
+				</div>
+			</div>
+
+			{#if rdvLoading}
+				<p class="text-sm text-gray-400 py-4 text-center">Chargement des rendez-vous…</p>
+			{:else if rdvFiltered.length === 0}
+				<p class="text-sm text-gray-400 py-4 text-center">Aucun rendez-vous pour cette période.</p>
+			{:else}
+				<div class="space-y-2">
+					{#each rdvFiltered as rdv}
+						<div class="flex items-center gap-3 rounded-xl border border-gray-100 p-3 bg-gray-50 hover:bg-white transition-all">
+							<div class="w-12 text-center flex-shrink-0">
+								<p class="text-xs font-bold text-primary-600">{rdvDateLabel(rdv.date_rdv)}</p>
+								<p class="text-lg font-syne font-bold text-gray-800">{rdv.heure_rdv}</p>
+							</div>
+							<div class="w-px h-10 bg-gray-200 flex-shrink-0"></div>
+							<div class="flex-1 min-w-0">
+								<p class="text-sm font-medium text-gray-800 truncate">{rdv.demandeur?.prenom} {rdv.demandeur?.nom}</p>
+								<p class="text-xs text-gray-400">{rdv.demande_id} · {rdv.demandeur?.telephone || '—'}</p>
+							</div>
+							<span class="text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0 {RDV_STATUT_COLORS[rdv.statut]}">
+								{RDV_STATUT_LABELS[rdv.statut] || rdv.statut}
+							</span>
+							<!-- Actions -->
+							{#if rdv.statut === 'en_attente'}
+								<button on:click={() => updateRdvStatut(rdv.id, 'confirme')}
+									class="text-xs px-2 py-1 rounded-lg bg-green-100 text-green-700 hover:bg-green-200 flex-shrink-0">✓ Confirmer</button>
+							{:else if rdv.statut === 'confirme'}
+								<button on:click={() => updateRdvStatut(rdv.id, 'effectue')}
+									class="text-xs px-2 py-1 rounded-lg bg-primary-100 text-primary-700 hover:bg-primary-200 flex-shrink-0">✓ Marquer effectué</button>
+							{/if}
+							{#if rdv.statut !== 'effectue' && rdv.statut !== 'annule'}
+								<button on:click={() => annulerRdvAgent(rdv.id)}
+									class="text-xs px-2 py-1 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 flex-shrink-0">✕</button>
+							{/if}
+						</div>
+					{/each}
+				</div>
+			{/if}
+		</div>
+	{/if}
 
 	<!-- Filters -->
 	<div class="card mb-4">

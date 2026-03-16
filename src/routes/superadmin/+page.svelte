@@ -296,7 +296,16 @@
 			settings = data.settings;
 			users = data.users;
 			globalEdit = { ...(data.settings.global || {}) };
-			globalEdit.frais_fixes = { ...(data.settings.global?.frais_fixes || {}) };
+			globalEdit.frais_fixes          = { ...(data.settings.global?.frais_fixes || {}) };
+			const rdvCfg                    = data.settings.rdv || {};
+			globalEdit.rdv_heure_debut      = rdvCfg.heure_debut      ?? '08:00';
+			globalEdit.rdv_heure_fin        = rdvCfg.heure_fin         ?? '16:00';
+			globalEdit.rdv_duree_creneau    = rdvCfg.duree_creneau     ?? 30;
+			globalEdit.rdv_max_par_creneau  = rdvCfg.max_rdv_par_creneau ?? 3;
+			globalEdit.rdv_delai_min_jours  = rdvCfg.delai_min_jours   ?? 1;
+			globalEdit.rdv_delai_max_jours  = rdvCfg.delai_max_jours   ?? 30;
+			globalEdit.rdv_lieu             = rdvCfg.lieu               ?? 'Mairie';
+			globalEdit.rdv_jours_ouvrables  = rdvCfg.jours_ouvrables   ?? [1,2,3,4,5];
 			delete globalEdit.modules;
 			delete globalEdit.locked_params;
 			agentNotifs = { ...(data.settings.agent?.notifications  || {}) };
@@ -374,6 +383,27 @@
 		savingRole = 'superviseur';
 		await saveRoleSettings('superviseur', { notifications: { ...supNotifs } });
 		savingRole = null;
+	}
+
+	async function saveRdvSettings() {
+		saving = true;
+		const rdvData = {
+			heure_debut:          globalEdit.rdv_heure_debut,
+			heure_fin:            globalEdit.rdv_heure_fin,
+			duree_creneau:        globalEdit.rdv_duree_creneau,
+			max_rdv_par_creneau:  globalEdit.rdv_max_par_creneau,
+			delai_min_jours:      globalEdit.rdv_delai_min_jours,
+			delai_max_jours:      globalEdit.rdv_delai_max_jours,
+			lieu:                 globalEdit.rdv_lieu,
+			jours_ouvrables:      globalEdit.rdv_jours_ouvrables
+		};
+		await fetch('/api/admin', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ action: 'save_rdv_settings', data: rdvData })
+		});
+		saving = false;
+		showToast('Paramètres RDV enregistrés');
 	}
 
 	async function saveMaireSettings() {
@@ -1080,6 +1110,77 @@
 					class="btn-primary text-sm w-full sm:w-auto">
 					{saving ? 'Enregistrement…' : '💾 Enregistrer tous les paramètres globaux'}
 				</button>
+
+				<!-- ── Paramètres Rendez-vous ────────────────────────── -->
+				{#if settings.global?.modules?.rdv}
+				<div class="bg-white rounded-2xl border border-primary-100 p-6 space-y-4">
+					<h2 class="font-syne font-semibold text-gray-700 flex items-center gap-2">📅 Paramètres Rendez-vous</h2>
+					<p class="text-xs text-gray-400">Configurez les horaires et les créneaux de retrait en mairie.</p>
+
+					<div class="grid sm:grid-cols-2 gap-4">
+						<div>
+							<label class="label text-xs">Heure d'ouverture</label>
+							<input type="time" bind:value={globalEdit.rdv_heure_debut} class="input-field text-sm"
+								placeholder="08:00" />
+						</div>
+						<div>
+							<label class="label text-xs">Heure de fermeture</label>
+							<input type="time" bind:value={globalEdit.rdv_heure_fin} class="input-field text-sm"
+								placeholder="16:00" />
+						</div>
+						<div>
+							<label class="label text-xs">Durée d'un créneau (minutes)</label>
+							<select bind:value={globalEdit.rdv_duree_creneau} class="input-field text-sm">
+								<option value={15}>15 min</option>
+								<option value={20}>20 min</option>
+								<option value={30}>30 min</option>
+								<option value={45}>45 min</option>
+								<option value={60}>1h</option>
+							</select>
+						</div>
+						<div>
+							<label class="label text-xs">RDV max par créneau</label>
+							<input type="number" min="1" max="20" bind:value={globalEdit.rdv_max_par_creneau} class="input-field text-sm" />
+						</div>
+						<div>
+							<label class="label text-xs">Délai min avant RDV (jours)</label>
+							<input type="number" min="0" max="30" bind:value={globalEdit.rdv_delai_min_jours} class="input-field text-sm" />
+						</div>
+						<div>
+							<label class="label text-xs">Horizon max (jours depuis aujourd'hui)</label>
+							<input type="number" min="7" max="90" bind:value={globalEdit.rdv_delai_max_jours} class="input-field text-sm" />
+						</div>
+						<div class="sm:col-span-2">
+							<label class="label text-xs">Lieu affiché au citoyen</label>
+							<input type="text" bind:value={globalEdit.rdv_lieu} class="input-field text-sm"
+								placeholder="Mairie de Cocody – Guichet 3" />
+						</div>
+					</div>
+
+					<!-- Jours ouvrables -->
+					<div>
+						<label class="label text-xs mb-2">Jours ouvrables</label>
+						<div class="flex gap-2 flex-wrap">
+							{#each [{d:1,l:'Lun'},{d:2,l:'Mar'},{d:3,l:'Mer'},{d:4,l:'Jeu'},{d:5,l:'Ven'},{d:6,l:'Sam'}] as j}
+								{@const actif = (globalEdit.rdv_jours_ouvrables || [1,2,3,4,5]).includes(j.d)}
+								<button on:click={() => {
+									const cur = globalEdit.rdv_jours_ouvrables || [1,2,3,4,5];
+									globalEdit.rdv_jours_ouvrables = actif ? cur.filter(x => x !== j.d) : [...cur, j.d].sort();
+								}}
+									class="px-3 py-1.5 rounded-xl border-2 text-sm font-medium transition-all
+										{actif ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-gray-200 text-gray-500 hover:border-gray-300'}">
+									{j.l}
+								</button>
+							{/each}
+						</div>
+					</div>
+
+					<button on:click={saveRdvSettings} disabled={saving}
+						class="btn-primary text-sm">
+						{saving ? 'Enregistrement…' : '💾 Enregistrer les paramètres RDV'}
+					</button>
+				</div>
+				{/if}
 
 				<!-- ── Paramètres agent ──────────────────────────────── -->
 				<div class="bg-white rounded-2xl border border-gray-100 p-6 space-y-5">

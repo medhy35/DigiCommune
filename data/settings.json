@@ -19,6 +19,16 @@
       "cas_critique": true
     }
   },
+  "rdv": {
+    "jours_ouvrables": [1, 2, 3, 4, 5],
+    "heure_debut": "08:00",
+    "heure_fin": "16:00",
+    "duree_creneau": 30,
+    "max_rdv_par_creneau": 3,
+    "delai_min_jours": 1,
+    "delai_max_jours": 30,
+    "lieu": "Mairie"
+  },
   "global": {
     "modules": {
       "naissance": true,
@@ -33,7 +43,8 @@
       "certificat_vie_entretien": true,
       "certificat_vie_adulte": true,
       "fiche_familiale": true,
-      "fiche_individuelle": true
+      "fiche_individuelle": true,
+      "rdv": true
     },
     "locked_params": [],
     "frais_copie": 500,
