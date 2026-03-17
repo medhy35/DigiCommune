@@ -1058,10 +1058,11 @@
 							</select>
 						</div>
 						<div>
-							{@const locked = lockedParams.includes('securite_session_heures')}
-							<label class="label text-xs flex items-center gap-1">Durée de session (heures){#if locked}<span class="text-red-500">🔒</span>{/if}</label>
-							<input type="number" min="1" max="72" bind:value={globalEdit.securite_session_heures} disabled={locked}
-								class="input-field text-sm {locked ? 'bg-gray-50 opacity-60' : ''}" />
+							{#each [lockedParams.includes('securite_session_heures')] as locked}
+								<label class="label text-xs flex items-center gap-1">Durée de session (heures){#if locked}<span class="text-red-500">🔒</span>{/if}</label>
+								<input type="number" min="1" max="72" bind:value={globalEdit.securite_session_heures} disabled={locked}
+									class="input-field text-sm {locked ? 'bg-gray-50 opacity-60' : ''}" />
+							{/each}
 						</div>
 					</div>
 				</div>
@@ -1071,25 +1072,27 @@
 					<h2 class="font-syne font-semibold text-gray-700 flex items-center gap-2">🌓 Paramètres lumière & interface</h2>
 					<div class="grid sm:grid-cols-2 gap-4">
 						<div>
-							{@const locked = lockedParams.includes('theme')}
-							<label class="label text-xs flex items-center gap-1">Thème de l'interface{#if locked}<span class="text-red-500">🔒</span>{/if}</label>
-							<select bind:value={globalEdit.theme} disabled={locked}
-								class="input-field text-sm {locked ? 'bg-gray-50 opacity-60' : ''}">
-								<option value="light">☀️ Clair</option>
-								<option value="dark">🌙 Sombre</option>
-								<option value="auto">🖥️ Automatique (système)</option>
-							</select>
+							{#each [lockedParams.includes('theme')] as locked}
+								<label class="label text-xs flex items-center gap-1">Thème de l'interface{#if locked}<span class="text-red-500">🔒</span>{/if}</label>
+								<select bind:value={globalEdit.theme} disabled={locked}
+									class="input-field text-sm {locked ? 'bg-gray-50 opacity-60' : ''}">
+									<option value="light">☀️ Clair</option>
+									<option value="dark">🌙 Sombre</option>
+									<option value="auto">🖥️ Automatique (système)</option>
+								</select>
+							{/each}
 						</div>
 						<div>
-							{@const locked = lockedParams.includes('taille_police')}
-							<label class="label text-xs flex items-center gap-1">Taille de police{#if locked}<span class="text-red-500">🔒</span>{/if}</label>
-							<select bind:value={globalEdit.taille_police} disabled={locked}
-								class="input-field text-sm {locked ? 'bg-gray-50 opacity-60' : ''}">
-								<option value="small">Petite</option>
-								<option value="normal">Normale</option>
-								<option value="large">Grande</option>
-								<option value="xlarge">Très grande</option>
-							</select>
+							{#each [lockedParams.includes('taille_police')] as locked}
+								<label class="label text-xs flex items-center gap-1">Taille de police{#if locked}<span class="text-red-500">🔒</span>{/if}</label>
+								<select bind:value={globalEdit.taille_police} disabled={locked}
+									class="input-field text-sm {locked ? 'bg-gray-50 opacity-60' : ''}">
+									<option value="small">Petite</option>
+									<option value="normal">Normale</option>
+									<option value="large">Grande</option>
+									<option value="xlarge">Très grande</option>
+								</select>
+							{/each}
 						</div>
 					</div>
 					<div class="flex items-center justify-between gap-4 pt-2">
@@ -1188,14 +1191,13 @@
 
 					<!-- SLA -->
 					<div>
-						{@const locked = lockedParams.includes('sla_heures')}
-						<label class="label text-xs flex items-center gap-1">SLA alerte (heures){#if locked}<span class="text-red-500">🔒 non modifiable par les agents</span>{/if}</label>
+						<label class="label text-xs flex items-center gap-1">SLA alerte (heures){#if lockedParams.includes('sla_heures')}<span class="text-red-500">🔒 non modifiable par les agents</span>{/if}</label>
 						<div class="flex items-center gap-3 flex-wrap">
 							{#each [24, 48, 72, 96] as h}
-								<button on:click={() => !locked && saveRoleSettings('agent', { sla_heures: h })}
+								<button on:click={() => !lockedParams.includes('sla_heures') && saveRoleSettings('agent', { sla_heures: h })}
 									class="px-4 py-2 rounded-xl border-2 text-sm font-medium transition-all
 										{settings.agent?.sla_heures === h ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-gray-200 text-gray-600'}
-										{locked ? 'opacity-50 cursor-not-allowed' : 'hover:border-primary-300'}"
+										{lockedParams.includes('sla_heures') ? 'opacity-50 cursor-not-allowed' : 'hover:border-primary-300'}"
 								>{h}h</button>
 							{/each}
 						</div>
@@ -1235,14 +1237,13 @@
 
 					<!-- Seuil escalades -->
 					<div>
-						{@const locked = lockedParams.includes('seuil_escalades_alerte')}
-						<label class="label text-xs flex items-center gap-1">Seuil alerte escalades{#if locked}<span class="text-red-500">🔒</span>{/if}</label>
+						<label class="label text-xs flex items-center gap-1">Seuil alerte escalades{#if lockedParams.includes('seuil_escalades_alerte')}<span class="text-red-500">🔒</span>{/if}</label>
 						<div class="flex items-center gap-3 flex-wrap">
 							{#each [1, 3, 5, 10] as s}
-								<button on:click={() => !locked && saveRoleSettings('superviseur', { seuil_escalades_alerte: s })}
+								<button on:click={() => !lockedParams.includes('seuil_escalades_alerte') && saveRoleSettings('superviseur', { seuil_escalades_alerte: s })}
 									class="px-4 py-2 rounded-xl border-2 text-sm font-medium transition-all
 										{settings.superviseur?.seuil_escalades_alerte === s ? 'border-violet-500 bg-violet-50 text-violet-700' : 'border-gray-200 text-gray-600'}
-										{locked ? 'opacity-50 cursor-not-allowed' : 'hover:border-violet-300'}"
+										{lockedParams.includes('seuil_escalades_alerte') ? 'opacity-50 cursor-not-allowed' : 'hover:border-violet-300'}"
 								>{s}</button>
 							{/each}
 						</div>
@@ -1251,16 +1252,15 @@
 					<!-- Notifications superviseur -->
 					<div class="pt-4 border-t border-gray-100 space-y-2">
 						<h3 class="text-sm font-semibold text-gray-600">Préférences de notification (superviseur)</h3>
-						{@const locked = lockedParams.includes('notif_superviseur_nouvelle_escalade')}
 						<div class="flex items-center justify-between gap-4 py-1.5">
 							<div class="flex-1">
-								<p class="text-sm text-gray-800 flex items-center gap-1">Nouvelle escalade{#if locked}<span class="text-xs text-red-500">🔒</span>{/if}</p>
+								<p class="text-sm text-gray-800 flex items-center gap-1">Nouvelle escalade{#if lockedParams.includes('notif_superviseur_nouvelle_escalade')}<span class="text-xs text-red-500">🔒</span>{/if}</p>
 								<p class="text-xs text-gray-400">Notifié à chaque escalade créée par un agent.</p>
 							</div>
-							<button on:click={() => !locked && (supNotifs.nouvelle_escalade = !supNotifs.nouvelle_escalade)}
+							<button on:click={() => !lockedParams.includes('notif_superviseur_nouvelle_escalade') && (supNotifs.nouvelle_escalade = !supNotifs.nouvelle_escalade)}
 								class="relative w-11 h-6 rounded-full transition-all duration-300 flex-shrink-0
 									{supNotifs.nouvelle_escalade ? 'bg-primary-500' : 'bg-gray-300'}
-									{locked ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}">
+									{lockedParams.includes('notif_superviseur_nouvelle_escalade') ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}">
 								<span class="absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all duration-300 {supNotifs.nouvelle_escalade ? 'left-5' : 'left-0.5'}"></span>
 							</button>
 						</div>
@@ -1276,14 +1276,13 @@
 
 					<!-- Période dashboard -->
 					<div>
-						{@const locked = lockedParams.includes('periode_dashboard')}
-						<label class="label text-xs flex items-center gap-1">Période par défaut du dashboard{#if locked}<span class="text-red-500">🔒</span>{/if}</label>
+						<label class="label text-xs flex items-center gap-1">Période par défaut du dashboard{#if lockedParams.includes('periode_dashboard')}<span class="text-red-500">🔒</span>{/if}</label>
 						<div class="flex gap-3 flex-wrap">
 							{#each [{v:'semaine',l:'Semaine'},{v:'mois',l:'Mois'},{v:'trimestre',l:'Trimestre'},{v:'annee',l:'Année'}] as opt}
-								<button on:click={() => !locked && (maireEdit.periode_dashboard = opt.v)}
+								<button on:click={() => !lockedParams.includes('periode_dashboard') && (maireEdit.periode_dashboard = opt.v)}
 									class="px-4 py-2 rounded-xl border-2 text-sm font-medium transition-all
 										{maireEdit.periode_dashboard === opt.v ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-gray-200 text-gray-600'}
-										{locked ? 'opacity-50 cursor-not-allowed' : 'hover:border-primary-300'}"
+										{lockedParams.includes('periode_dashboard') ? 'opacity-50 cursor-not-allowed' : 'hover:border-primary-300'}"
 								>{opt.l}</button>
 							{/each}
 						</div>
@@ -1292,16 +1291,15 @@
 					<!-- Notifications maire -->
 					<div class="pt-4 border-t border-gray-100 space-y-2">
 						<h3 class="text-sm font-semibold text-gray-600">Préférences de notification (maire)</h3>
-						{@const locked = lockedParams.includes('notif_maire_cas_critique')}
 						<div class="flex items-center justify-between gap-4 py-1.5">
 							<div class="flex-1">
-								<p class="text-sm text-gray-800 flex items-center gap-1">Cas critique (SLA dépassé){#if locked}<span class="text-xs text-red-500">🔒</span>{/if}</p>
+								<p class="text-sm text-gray-800 flex items-center gap-1">Cas critique (SLA dépassé){#if lockedParams.includes('notif_maire_cas_critique')}<span class="text-xs text-red-500">🔒</span>{/if}</p>
 								<p class="text-xs text-gray-400">Le maire est alerté lorsqu'une demande dépasse le délai SLA.</p>
 							</div>
-							<button on:click={() => !locked && (maireEdit.cas_critique = !maireEdit.cas_critique)}
+							<button on:click={() => !lockedParams.includes('notif_maire_cas_critique') && (maireEdit.cas_critique = !maireEdit.cas_critique)}
 								class="relative w-11 h-6 rounded-full transition-all duration-300 flex-shrink-0
 									{maireEdit.cas_critique ? 'bg-primary-500' : 'bg-gray-300'}
-									{locked ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}">
+									{lockedParams.includes('notif_maire_cas_critique') ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}">
 								<span class="absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all duration-300 {maireEdit.cas_critique ? 'left-5' : 'left-0.5'}"></span>
 							</button>
 						</div>
