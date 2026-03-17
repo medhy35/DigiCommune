@@ -2,6 +2,7 @@ import { json } from '@sveltejs/kit';
 import { readDemandes, writeDemandes, readSettings } from '$lib/server/data.js';
 import { createNotification } from '$lib/server/notifications.js';
 import { TYPE_ACTE_LABELS } from '$lib/utils/helpers.js';
+import { registerVerifCode } from '$lib/server/verification.js';
 
 export function GET({ url }) {
 	const demandes     = readDemandes();
@@ -33,6 +34,26 @@ export async function POST({ request }) {
 	const id  = generateId(demandes);
 	const now = new Date().toISOString();
 
+	// Code de vérification pour l'attestation de dépôt
+	const codeAttestation = registerVerifCode('attestation', {
+		demande_id:  id,
+		type_doc:    'Attestation de dépôt',
+		demandeur:   `${body.demandeur.prenom} ${body.demandeur.nom}`,
+		type_acte:   TYPE_ACTE_LABELS[body.type_acte] || body.type_acte,
+		commune:     null // sera enrichi côté PDF si nécessaire
+	});
+
+	// Code reçu si paiement déjà effectué en ligne
+	const codePaiement = body.paiement?.statut === 'paye'
+		? registerVerifCode('recu', {
+			demande_id: id,
+			type_doc:   'Reçu de paiement',
+			demandeur:  `${body.demandeur.prenom} ${body.demandeur.nom}`,
+			montant:    body.paiement.montant,
+			reference:  body.paiement.reference || null
+		})
+		: null;
+
 	const newDemande = {
 		id,
 		created_at: now,
@@ -48,6 +69,10 @@ export async function POST({ request }) {
 		paiement: body.paiement || { mode: 'mairie', statut: 'en_attente', montant: body.copies * (settings.global?.frais_copie ?? 500) },
 		agent_id: assignAgent(demandes),
 		escalade: null,
+		verification_codes: {
+			attestation: codeAttestation,
+			...(codePaiement ? { recu: codePaiement } : {})
+		},
 		historique: [{
 			statut: 'recue',
 			date: now,

@@ -1,4 +1,46 @@
 import { TYPE_ACTE_LABELS, formatDate, formatDateTime } from './helpers.js';
+import QRCode from 'qrcode';
+
+/**
+ * Génère un bloc pdfmake de vérification numérique (QR + cachet + code).
+ * @param {string} code     - Code de vérification ex: "CV-ATT-3K9MXP2Q"
+ * @param {string} origin   - URL de base ex: "https://civici.ci"
+ */
+async function verificationBlock(code, origin) {
+	if (!code) return [];
+	const url = `${origin}/verifier/${code}`;
+	let qrDataUrl;
+	try {
+		qrDataUrl = await QRCode.toDataURL(url, { width: 80, margin: 1, color: { dark: '#1a1a1a', light: '#ffffff' } });
+	} catch {
+		return [];
+	}
+	return [
+		{ canvas: [{ type: 'line', x1: 0, y1: 0, x2: 495, y2: 0, lineWidth: 0.5, lineColor: '#e5e7eb' }] },
+		{ text: '\n' },
+		{
+			columns: [
+				{
+					stack: [
+						{ text: '✓ CERTIFIÉ NUMÉRIQUEMENT', style: 'certifie_titre' },
+						{ text: 'Ce document est signé et vérifiable en ligne.', style: 'certifie_sub' },
+						{ text: `Code : ${code}`, style: 'certifie_code' },
+						{ text: `Vérifiez sur : ${origin}/verifier/${code}`, style: 'certifie_url' }
+					],
+					width: '*'
+				},
+				{
+					stack: [
+						{ image: qrDataUrl, width: 64, height: 64 }
+					],
+					width: 70,
+					alignment: 'right'
+				}
+			],
+			margin: [0, 4, 0, 0]
+		}
+	];
+}
 
 /** Shared: load pdfmake once */
 async function getPdfMake() {
@@ -50,7 +92,11 @@ const BASE_STYLES = {
 	tableValue: { fontSize: 11, color: '#1a1a1a' },
 	mention_legale: { fontSize: 8, color: '#888', italics: true },
 	signature_label: { fontSize: 10, bold: true, color: '#333' },
-	signature_name: { fontSize: 9, color: '#555', margin: [0, 4, 0, 0] }
+	signature_name: { fontSize: 9, color: '#555', margin: [0, 4, 0, 0] },
+	certifie_titre: { fontSize: 9, bold: true, color: '#009A44', margin: [0, 0, 0, 2] },
+	certifie_sub:   { fontSize: 8, color: '#555', margin: [0, 0, 0, 3] },
+	certifie_code:  { fontSize: 9, bold: true, color: '#1a3a5c', font: 'Roboto' },
+	certifie_url:   { fontSize: 7, color: '#888', italics: true, margin: [0, 1, 0, 0] }
 };
 
 function triggerDownload(blob, filename) {
@@ -64,7 +110,7 @@ function triggerDownload(blob, filename) {
 
 // ─── ACTE OFFICIEL ────────────────────────────────────────────────────────────
 
-export async function generateActePDF(demande, commune) {
+export async function generateActePDF(demande, commune, origin = window.location.origin) {
 	const pdfMake = await getPdfMake();
 	const typeLabel = TYPE_ACTE_LABELS[demande.type_acte] || demande.type_acte;
 	const personne = demande.personne_concernee;
@@ -155,7 +201,8 @@ export async function generateActePDF(demande, commune) {
 					}
 				]
 			},
-			{ canvas: [{ type: 'ellipse', x: 420, y: -80, r1: 45, r2: 45, lineWidth: 2, lineColor: '#009A44', fillOpacity: 0 }], absolutePosition: { x: 400, y: 680 } }
+			{ canvas: [{ type: 'ellipse', x: 420, y: -80, r1: 45, r2: 45, lineWidth: 2, lineColor: '#009A44', fillOpacity: 0 }], absolutePosition: { x: 400, y: 680 } },
+		...await verificationBlock(demande.verification_codes?.acte, origin)
 		],
 		styles: {
 			...BASE_STYLES,
@@ -176,7 +223,7 @@ export async function downloadActePDF(demande, commune) {
 
 // ─── ATTESTATION DE DÉPÔT ────────────────────────────────────────────────────
 
-export async function downloadAttestationDepotPDF(demande, commune) {
+export async function downloadAttestationDepotPDF(demande, commune, origin = window.location.origin) {
 	const pdfMake = await getPdfMake();
 	const typeLabel = TYPE_ACTE_LABELS[demande.type_acte] || demande.type_acte;
 	const dateDepot = new Date(demande.created_at);
@@ -258,7 +305,8 @@ export async function downloadAttestationDepotPDF(demande, commune) {
 					}
 				]
 			},
-			{ canvas: [{ type: 'ellipse', x: 0, y: 0, r1: 40, r2: 40, lineWidth: 2, lineColor: '#009A44', fillOpacity: 0 }], absolutePosition: { x: 390, y: 690 } }
+			{ canvas: [{ type: 'ellipse', x: 0, y: 0, r1: 40, r2: 40, lineWidth: 2, lineColor: '#009A44', fillOpacity: 0 }], absolutePosition: { x: 390, y: 690 } },
+		...await verificationBlock(demande.verification_codes?.attestation, origin)
 		],
 		styles: {
 			...BASE_STYLES,
@@ -277,7 +325,7 @@ export async function downloadAttestationDepotPDF(demande, commune) {
 
 // ─── REÇU DE PAIEMENT ────────────────────────────────────────────────────────
 
-export async function downloadRecuPaiementPDF(demande, commune) {
+export async function downloadRecuPaiementPDF(demande, commune, origin = window.location.origin) {
 	const pdfMake = await getPdfMake();
 	const typeLabel = TYPE_ACTE_LABELS[demande.type_acte] || demande.type_acte;
 	const paiement = demande.paiement || {};
@@ -375,7 +423,8 @@ export async function downloadRecuPaiementPDF(demande, commune) {
 					}
 				]
 			},
-			{ canvas: [{ type: 'ellipse', x: 0, y: 0, r1: 40, r2: 40, lineWidth: 2, lineColor: '#009A44', fillOpacity: 0 }], absolutePosition: { x: 390, y: 700 } }
+			{ canvas: [{ type: 'ellipse', x: 0, y: 0, r1: 40, r2: 40, lineWidth: 2, lineColor: '#009A44', fillOpacity: 0 }], absolutePosition: { x: 390, y: 700 } },
+		...await verificationBlock(demande.verification_codes?.recu, origin)
 		],
 		styles: {
 			...BASE_STYLES,

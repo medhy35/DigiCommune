@@ -1,6 +1,7 @@
 import { json, error } from '@sveltejs/kit';
 import { readDemandes, writeDemandes, readUsers, batchSecurityLog } from '$lib/server/data.js';
 import { createNotification } from '$lib/server/notifications.js';
+import { registerVerifCode } from '$lib/server/verification.js';
 
 function resolveUserName(userId) {
 	try {
@@ -82,6 +83,18 @@ export async function PATCH({ params, request }) {
 	// ── Données de l'acte validé ────────────────────────────
 	if (body.acte) {
 		demande.acte = { ...(demande.acte || {}), ...body.acte };
+		// Générer le code de vérification pour l'acte officiel
+		if (!demande.verification_codes?.acte) {
+			const codeActe = registerVerifCode('acte', {
+				demande_id:  params.id,
+				type_doc:    'Acte officiel',
+				type_acte:   demande.type_acte,
+				demandeur:   `${demande.demandeur.prenom} ${demande.demandeur.nom}`,
+				numero_acte: body.acte.numero_acte || '',
+				officier:    body.acte.officier_nom || ''
+			});
+			demande.verification_codes = { ...(demande.verification_codes || {}), acte: codeActe };
+		}
 		secLogs.push({ type: 'acte_valide', acteur: role, details: {
 			demande_id:   params.id,
 			type_acte:    demande.type_acte,
@@ -151,6 +164,16 @@ export async function PATCH({ params, request }) {
 	if (body.paiement_valide) {
 		demande.paiement = { ...demande.paiement, statut: 'paye', mode: 'mairie' };
 		demande.historique.push({ statut: demande.statut, date: now, par: parName, note: `Paiement de ${demande.paiement.montant?.toLocaleString('fr-FR')} FCFA encaissé en mairie` });
+		// Générer le code de vérification pour le reçu si pas encore fait
+		if (!demande.verification_codes?.recu) {
+			const codeRecu = registerVerifCode('recu', {
+				demande_id: params.id,
+				type_doc:   'Reçu de paiement',
+				demandeur:  `${demande.demandeur.prenom} ${demande.demandeur.nom}`,
+				montant:    demande.paiement.montant
+			});
+			demande.verification_codes = { ...(demande.verification_codes || {}), recu: codeRecu };
+		}
 		secLogs.push({ type: 'paiement_valide', acteur: role, details: { demande_id: params.id, montant: demande.paiement.montant, par: parName } });
 	}
 

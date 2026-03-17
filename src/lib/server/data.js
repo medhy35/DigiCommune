@@ -91,6 +91,12 @@ export function batchSecurityLog(entries) {
 	writeSecurityLog(log.slice(0, 2000));
 }
 
+// ── Codes de vérification ─────────────────────────────────────────────
+export function readVerifCodes() {
+	try { return readJSON('verification_codes.json'); } catch { return {}; }
+}
+export const writeVerifCodes = (v) => writeJSON('verification_codes.json', v);
+
 // ── Rendez-vous ───────────────────────────────────────────────────────
 export function readRendezVous() {
 	try { return readJSON('rendez_vous.json'); } catch { return []; }
