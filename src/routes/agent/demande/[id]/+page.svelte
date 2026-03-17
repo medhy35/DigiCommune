@@ -7,10 +7,13 @@
 	import { formatDateTime, isEscaladee } from '$lib/utils/helpers.js';
 	import { downloadActePDF, downloadAttestationDepotPDF, downloadRecuPaiementPDF } from '$lib/utils/pdf.js';
 	import { toast } from '$lib/stores/toast.js';
+	import { authRole } from '$lib/stores/auth.js';
 
 	let demande = null;
 	let commune = null;
 	let loading = true;
+
+	$: currentUser = $authRole || 'agent';
 	let saving = false;
 	let generatingPdf = false;
 	let sendingWhatsapp = false;
@@ -67,8 +70,8 @@
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({
 				statut: 'traitee',
-				acte: { ...acteForm, valide_le: new Date().toISOString(), valide_par: 'agent_001' },
-				par: 'agent_001',
+				acte: { ...acteForm, valide_le: new Date().toISOString(), valide_par: currentUser },
+				par: currentUser,
 				note: `Acte enregistré — N°${acteForm.numero_acte} — Signé par ${acteForm.officier_nom}`
 			})
 		});
@@ -112,7 +115,7 @@
 				statut: 'complements_requis',
 				note: `Compléments requis${complementItems.length ? ' : ' + complementItems.join(', ') : ''}${complementMotif ? ' — ' + complementMotif : ''}`,
 				complement_demande: { motif: complementMotif, items: complementItems },
-				par: 'agent_001'
+				par: currentUser
 			})
 		});
 		if (res.ok) {
@@ -164,7 +167,7 @@
 		const res = await fetch(`/api/demandes/${id}`, {
 			method: 'PATCH',
 			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ statut: newStatut, note, par: 'agent_001' })
+			body: JSON.stringify({ statut: newStatut, note, par: currentUser })
 		});
 		if (res.ok) {
 			demande = await res.json();
@@ -179,7 +182,7 @@
 		const res = await fetch(`/api/demandes/${id}`, {
 			method: 'PATCH',
 			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ paiement_valide: true, par: 'agent_001' })
+			body: JSON.stringify({ paiement_valide: true, par: currentUser })
 		});
 		if (res.ok) { demande = await res.json(); toast('Paiement encaissé confirmé'); }
 		saving = false;
@@ -191,7 +194,7 @@
 		const res = await fetch(`/api/demandes/${id}`, {
 			method: 'PATCH',
 			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ statut: 'rejetee', note: rejetMotif, par: 'agent_001' })
+			body: JSON.stringify({ statut: 'rejetee', note: rejetMotif, par: currentUser })
 		});
 		if (res.ok) {
 			demande = await res.json();
@@ -208,7 +211,7 @@
 		const res = await fetch(`/api/demandes/${id}`, {
 			method: 'PATCH',
 			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ note_interne: noteTexte, par: 'agent_001' })
+			body: JSON.stringify({ note_interne: noteTexte, par: currentUser })
 		});
 		if (res.ok) {
 			demande = await res.json();
@@ -233,9 +236,9 @@
 					motif: escaladeMotif,
 					date: new Date().toISOString(),
 					resolu: false,
-					par: 'agent_001'
+					par: currentUser
 				},
-				par: 'agent_001'
+				par: currentUser
 			})
 		});
 		if (res.ok) {
