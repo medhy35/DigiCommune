@@ -1,5 +1,5 @@
 import { json } from '@sveltejs/kit';
-import { readDemandes, writeDemandes, readSettings } from '$lib/server/data.js';
+import { readDemandes, writeDemandes, readSettings, readUsers } from '$lib/server/data.js';
 import { createNotification } from '$lib/server/notifications.js';
 import { TYPE_ACTE_LABELS } from '$lib/utils/helpers.js';
 import { registerVerifCode } from '$lib/server/verification.js';
@@ -108,7 +108,10 @@ function renameDoc(doc, dossierId, demandeur) {
 }
 
 function assignAgent(demandes) {
-	const agents = ['agent_001', 'agent_002'];
+	const users  = readUsers();
+	const agents = (users.agents || []).filter(a => a.actif).map(a => a.id);
+	if (!agents.length) return null;
 	const counts = agents.map(a => demandes.filter(d => d.agent_id === a).length);
-	return agents[counts[0] <= counts[1] ? 0 : 1];
+	const minIdx = counts.indexOf(Math.min(...counts));
+	return agents[minIdx];
 }

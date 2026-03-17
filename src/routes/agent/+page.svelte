@@ -58,7 +58,7 @@
 
 	async function loadDemandes() {
 		loading = true;
-		const res = await fetch('/api/demandes?agent_id=agent_001');
+		const res = await fetch('/api/demandes');
 		demandes = await res.json();
 		// Sort: escalated first, then by date desc
 		demandes.sort((a, b) => {

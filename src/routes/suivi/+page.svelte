@@ -5,6 +5,7 @@
 	import StatusBadge from '$lib/components/StatusBadge.svelte';
 	import { TYPE_ACTE_LABELS, TYPE_ACTE_ICONS, CONCERNANT_LABELS, MODE_RECEPTION_LABELS, formatDateTime, RDV_STATUT_LABELS, RDV_STATUT_COLORS } from '$lib/utils/helpers.js';
 	import { downloadAttestationDepotPDF, downloadRecuPaiementPDF, downloadSuiviCompletPDF } from '$lib/utils/pdf.js';
+	import { toast } from '$lib/stores/toast.js';
 
 	let numero = '';
 	let nom = '';
@@ -169,21 +170,33 @@
 	async function genAttestation() {
 		if (!demande || !commune) return;
 		genAttestationLoading = true;
-		try { await downloadAttestationDepotPDF(demande, commune); } catch(e) {}
+		try {
+			await downloadAttestationDepotPDF(demande, commune);
+		} catch(e) {
+			toast('Impossible de générer l\'attestation de dépôt', 'error');
+		}
 		genAttestationLoading = false;
 	}
 
 	async function genRecu() {
 		if (!demande || !commune) return;
 		genRecuLoading = true;
-		try { await downloadRecuPaiementPDF(demande, commune); } catch(e) {}
+		try {
+			await downloadRecuPaiementPDF(demande, commune);
+		} catch(e) {
+			toast('Impossible de générer le reçu de paiement', 'error');
+		}
 		genRecuLoading = false;
 	}
 
 	async function genSuivi() {
 		if (!demande || !commune) return;
 		genSuiviLoading = true;
-		try { await downloadSuiviCompletPDF(demande, commune); } catch(e) {}
+		try {
+			await downloadSuiviCompletPDF(demande, commune);
+		} catch(e) {
+			toast('Impossible de générer le document de suivi', 'error');
+		}
 		genSuiviLoading = false;
 	}
 </script>
