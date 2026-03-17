@@ -152,8 +152,8 @@ export function timeAgo(isoString) {
 }
 
 export function getStatutStep(statut) {
-	const steps = ['recue', 'en_cours', 'traitee', 'disponible'];
-	return steps.indexOf(statut);
+	const map = { recue: 0, en_cours: 1, complements_requis: 1, complements_fournis: 1, traitee: 2, disponible: 3 };
+	return map[statut] ?? -1;
 }
 
 export function isEscaladee(demande) {

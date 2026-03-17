@@ -79,9 +79,9 @@
 	});
 
 	$: stats = {
-		nouvelles: demandes.filter(d => d.statut === 'recue').length,
-		en_cours: demandes.filter(d => d.statut === 'en_cours').length,
-		traitees: demandes.filter(d => d.statut === 'traitee' || d.statut === 'disponible').length,
+		nouvelles:  demandes.filter(d => d.statut === 'recue').length,
+		en_cours:   demandes.filter(d => ['en_cours', 'complements_requis', 'complements_fournis'].includes(d.statut)).length,
+		traitees:   demandes.filter(d => d.statut === 'traitee' || d.statut === 'disponible').length,
 		escaladees: demandes.filter(isEscaladee).length
 	};
 </script>
@@ -192,6 +192,8 @@
 				<option value="">Tous les statuts</option>
 				<option value="recue">Reçue</option>
 				<option value="en_cours">En cours</option>
+				<option value="complements_requis">Compléments requis</option>
+				<option value="complements_fournis">Compléments fournis</option>
 				<option value="traitee">Traitée</option>
 				<option value="disponible">Disponible</option>
 			</select>
