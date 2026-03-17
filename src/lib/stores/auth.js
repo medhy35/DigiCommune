@@ -10,36 +10,76 @@ function logSecurityEvent(type, acteur, details = {}) {
 	}).catch(() => {});
 }
 
-function createAuthStore() {
-	const STORAGE_KEY = 'civici_role';
+const ROLE_KEY = 'civici_role'; // gardé pour compat avec les sessions existantes
+const USER_KEY = 'civici_user'; // { role, userId } — source of truth
 
-	const initialRole = browser ? localStorage.getItem(STORAGE_KEY) : null;
-
-	const { subscribe, set } = writable(initialRole);
-
-	return {
-		subscribe,
-		login(role) {
-			if (browser) localStorage.setItem(STORAGE_KEY, role);
-			set(role);
-			logSecurityEvent('connexion', role, { via: 'login_page' });
-		},
-		logout() {
-			const role = browser ? localStorage.getItem(STORAGE_KEY) : null;
-			if (browser) localStorage.removeItem(STORAGE_KEY);
-			set(null);
-			if (role) logSecurityEvent('deconnexion', role, {});
-		}
-	};
+function readStoredUser() {
+	if (!browser) return null;
+	try {
+		const raw = localStorage.getItem(USER_KEY);
+		if (raw) return JSON.parse(raw);
+	} catch {}
+	// Fallback : ancienne session (role string seul)
+	const role = localStorage.getItem(ROLE_KEY);
+	return role ? { role, userId: null } : null;
 }
 
-export const authRole = createAuthStore();
+function createAuthStore() {
+	const initial = readStoredUser();
 
-export const isAgent      = derived(authRole, $role => $role === 'agent');
-export const isSuperviseur = derived(authRole, $role => $role === 'superviseur');
-export const isMaire      = derived(authRole, $role => $role === 'maire');
-export const isSuperadmin = derived(authRole, $role => $role === 'superadmin');
-export const isAuthenticated = derived(authRole, $role => !!$role);
+	// roleStore — rôle string, conservé pour la compat des 11 fichiers existants
+	const roleStore = writable(initial?.role ?? null);
+	// userStore — { role, userId } — utilisé pour les nouveaux filtres et la migration PG
+	const userStore = writable(initial);
+
+	function login(role, userId = null) {
+		const user = { role, userId };
+		if (browser) {
+			localStorage.setItem(ROLE_KEY, role);
+			localStorage.setItem(USER_KEY, JSON.stringify(user));
+		}
+		roleStore.set(role);
+		userStore.set(user);
+		logSecurityEvent('connexion', userId || role, { via: 'login_page' });
+	}
+
+	function logout() {
+		const role = browser ? localStorage.getItem(ROLE_KEY) : null;
+		if (browser) {
+			localStorage.removeItem(ROLE_KEY);
+			localStorage.removeItem(USER_KEY);
+		}
+		roleStore.set(null);
+		userStore.set(null);
+		if (role) logSecurityEvent('deconnexion', role, {});
+	}
+
+	return { roleStore, userStore, login, logout };
+}
+
+const _auth = createAuthStore();
+
+// authRole — API inchangée, tous les fichiers existants continuent de fonctionner
+export const authRole = {
+	subscribe: _auth.roleStore.subscribe,
+	login:     _auth.login,
+	logout:    _auth.logout
+};
+
+// authUser — nouveau store { role, userId }
+// Quand on passe à PG : login() sera appelé avec le userId renvoyé par l'API d'auth
+export const authUser = {
+	subscribe: _auth.userStore.subscribe,
+	login:     _auth.login,
+	logout:    _auth.logout
+};
+
+// Dérivés existants — inchangés
+export const isAgent       = derived(_auth.roleStore, $r => $r === 'agent');
+export const isSuperviseur = derived(_auth.roleStore, $r => $r === 'superviseur');
+export const isMaire       = derived(_auth.roleStore, $r => $r === 'maire');
+export const isSuperadmin  = derived(_auth.roleStore, $r => $r === 'superadmin');
+export const isAuthenticated = derived(_auth.roleStore, $r => !!$r);
 
 export const ROLE_LABELS = {
 	agent:      'Agent',

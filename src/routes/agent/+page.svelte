@@ -3,6 +3,7 @@
 	import { goto } from '$app/navigation';
 	import StatusBadge from '$lib/components/StatusBadge.svelte';
 	import { TYPE_ACTE_LABELS, TYPE_ACTE_ICONS, formatDateTime, timeAgo, isEscaladee, isSLADepassee, RDV_STATUT_LABELS, RDV_STATUT_COLORS } from '$lib/utils/helpers.js';
+	import { authUser } from '$lib/stores/auth.js';
 
 	let demandes = [];
 	let loading = true;
@@ -58,7 +59,9 @@
 
 	async function loadDemandes() {
 		loading = true;
-		const res = await fetch('/api/demandes');
+		const agentId = $authUser?.userId;
+		const url = agentId ? `/api/demandes?agent_id=${agentId}` : '/api/demandes';
+		const res = await fetch(url);
 		demandes = await res.json();
 		// Sort: escalated first, then by date desc
 		demandes.sort((a, b) => {
