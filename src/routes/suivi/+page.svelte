@@ -17,6 +17,42 @@
 	let genRecuLoading = false;
 	let genSuiviLoading = false;
 
+	// Compléments — upload en ligne
+	let uploadedComplements = {};   // { index: { name, size, type, data } }
+	let complementUploading = false;
+	let complementDone = false;
+
+	function handleComplementFile(index, event) {
+		const file = event.target.files[0];
+		if (!file) return;
+		const reader = new FileReader();
+		reader.onload = (e) => {
+			uploadedComplements[index] = { name: file.name, size: file.size, type: file.type, data: e.target.result };
+			uploadedComplements = { ...uploadedComplements };
+		};
+		reader.readAsDataURL(file);
+	}
+
+	async function envoyerComplements() {
+		if (Object.keys(uploadedComplements).length === 0) return;
+		complementUploading = true;
+		const docs = Object.entries(uploadedComplements).map(([idx, f]) => ({
+			label: demande.complement_demande.items?.[idx] || `Document ${+idx + 1}`,
+			nom: f.name, taille: f.size, mimetype: f.type, data: f.data
+		}));
+		const res = await fetch(`/api/demandes/${demande.id}`, {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ complement_fourni: { documents: docs } })
+		});
+		if (res.ok) {
+			demande = await res.json();
+			complementDone = true;
+			uploadedComplements = {};
+		}
+		complementUploading = false;
+	}
+
 	// Rendez-vous
 	let rdvModuleActif = false;
 	let rdvCfg         = null;
@@ -305,6 +341,84 @@
 		<h2 class="font-syne font-semibold text-gray-700 mb-4">Avancement de votre dossier</h2>
 		<Timeline historique={demande.historique} statut={demande.statut} />
 	</div>
+
+	<!-- Compléments requis / fournis -->
+	{#if demande.complement_demande}
+		{#if demande.statut === 'complements_requis'}
+			<div class="bg-purple-50 border border-purple-200 rounded-xl p-4 mb-4">
+				<div class="flex items-start gap-3">
+					<span class="text-2xl flex-shrink-0">📋</span>
+					<div class="flex-1">
+						<p class="font-semibold text-purple-800 mb-1">Des compléments vous sont demandés</p>
+						<p class="text-sm text-purple-700 mb-3">La mairie a besoin de documents supplémentaires pour traiter votre dossier.</p>
+						{#if demande.complement_demande.items?.length}
+							<div class="mb-3">
+								<p class="text-xs font-semibold text-purple-700 uppercase tracking-wide mb-2">Documents à fournir :</p>
+								<ul class="space-y-3">
+									{#each demande.complement_demande.items as item, i}
+										<li class="flex flex-col gap-1">
+											<div class="flex items-center gap-2 text-sm text-purple-800">
+												<svg class="w-4 h-4 text-purple-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+												</svg>
+												{item}
+											</div>
+											{#if uploadedComplements[i]}
+												<div class="flex items-center gap-2 bg-green-50 border border-green-200 rounded-lg px-3 py-1.5 text-xs text-green-700 ml-6">
+													<svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+													{uploadedComplements[i].name}
+													<button on:click={() => { const u = {...uploadedComplements}; delete u[i]; uploadedComplements = u; }} class="ml-auto text-red-400 hover:text-red-600">✕</button>
+												</div>
+											{:else}
+												<label class="ml-6 cursor-pointer inline-flex items-center gap-1.5 text-xs text-purple-600 hover:text-purple-800 border border-purple-200 hover:border-purple-400 bg-white rounded-lg px-3 py-1.5 transition-all w-fit">
+													<svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+													Joindre le fichier
+													<input type="file" class="hidden" accept=".jpg,.jpeg,.png,.pdf" on:change={(e) => handleComplementFile(i, e)} />
+												</label>
+											{/if}
+										</li>
+									{/each}
+								</ul>
+							</div>
+						{/if}
+						{#if demande.complement_demande.motif}
+							<div class="bg-purple-100 rounded-lg p-3 text-sm text-purple-800 mb-3">
+								<p class="font-medium mb-0.5">Message de la mairie :</p>
+								<p>{demande.complement_demande.motif}</p>
+							</div>
+						{/if}
+						{#if Object.keys(uploadedComplements).length > 0}
+							<button
+								on:click={envoyerComplements}
+								disabled={complementUploading}
+								class="w-full flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold px-4 py-2.5 rounded-lg transition-all"
+							>
+								{#if complementUploading}
+									<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+									Envoi en cours…
+								{:else}
+									<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+									Envoyer {Object.keys(uploadedComplements).length} document{Object.keys(uploadedComplements).length > 1 ? 's' : ''} à la mairie
+								{/if}
+							</button>
+						{:else}
+							<p class="text-xs text-purple-600 mt-1">
+								📍 Joignez vos documents ci-dessus ou présentez-vous à la mairie.
+							</p>
+						{/if}
+					</div>
+				</div>
+			</div>
+		{:else if demande.statut === 'complements_fournis'}
+			<div class="bg-indigo-50 border border-indigo-200 rounded-xl p-4 mb-4 flex items-start gap-3">
+				<span class="text-2xl flex-shrink-0">✅</span>
+				<div>
+					<p class="font-semibold text-indigo-800">Documents envoyés avec succès</p>
+					<p class="text-sm text-indigo-700 mt-1">La mairie a bien reçu vos documents complémentaires. Votre dossier est en cours de traitement.</p>
+				</div>
+			</div>
+		{/if}
+	{/if}
 
 	<!-- Messages disponibilité -->
 	{#if demande.statut === 'disponible' && demande.mode_reception === 'retrait'}

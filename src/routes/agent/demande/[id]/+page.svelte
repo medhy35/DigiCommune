@@ -294,17 +294,19 @@
 	}
 
 	const NEXT_STATUT = {
-		recue:              'en_cours',
-		en_cours:           'traitee',
-		complements_requis: 'en_cours',
-		traitee:            'disponible'
+		recue:               'en_cours',
+		en_cours:            'traitee',
+		complements_requis:  'en_cours',
+		complements_fournis: 'en_cours',
+		traitee:             'disponible'
 	};
 
 	const NEXT_LABEL = {
-		recue:              'Prendre en charge',
-		en_cours:           'Marquer comme traitée',
-		complements_requis: 'Reprendre le traitement',
-		traitee:            'Disponible'
+		recue:               'Prendre en charge',
+		en_cours:            'Marquer comme traitée',
+		complements_requis:  'Reprendre le traitement',
+		complements_fournis: 'Reprendre le traitement',
+		traitee:             'Disponible'
 	};
 </script>
 
@@ -339,6 +341,41 @@
 			<p class="text-sm text-gray-500 mt-0.5">Soumis le {formatDateTime(demande.created_at)}</p>
 		</div>
 	</div>
+
+	<!-- Bannière compléments fournis -->
+	{#if demande.statut === 'complements_fournis' && demande.complement_fourni}
+		<div class="bg-indigo-50 border border-indigo-300 rounded-xl p-4 mb-4">
+			<div class="flex items-start gap-3">
+				<span class="text-2xl flex-shrink-0">📥</span>
+				<div class="flex-1">
+					<p class="font-semibold text-indigo-800 mb-1">Le citoyen a déposé ses documents complémentaires</p>
+					<p class="text-sm text-indigo-700 mb-3">
+						{demande.complement_fourni.documents?.length || 0} document{(demande.complement_fourni.documents?.length || 0) > 1 ? 's' : ''} reçu{(demande.complement_fourni.documents?.length || 0) > 1 ? 's' : ''} en ligne le {demande.complement_fourni.date ? new Date(demande.complement_fourni.date).toLocaleDateString('fr-FR') : ''}.
+					</p>
+					{#if demande.complement_fourni.documents?.length}
+						<ul class="space-y-2 mb-3">
+							{#each demande.complement_fourni.documents as doc}
+								<li class="flex items-center gap-2 text-sm bg-white border border-indigo-200 rounded-lg px-3 py-2">
+									<svg class="w-4 h-4 text-indigo-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+									</svg>
+									<div class="flex-1 min-w-0">
+										<p class="font-medium text-indigo-800 truncate">{doc.label}</p>
+										<p class="text-xs text-gray-400">{doc.nom}</p>
+									</div>
+									{#if doc.data}
+										<a href={doc.data} download={doc.nom} class="text-xs text-indigo-600 hover:text-indigo-800 border border-indigo-200 rounded px-2 py-0.5 hover:bg-indigo-50 transition-colors">
+											Télécharger
+										</a>
+									{/if}
+								</li>
+							{/each}
+						</ul>
+					{/if}
+				</div>
+			</div>
+		</div>
+	{/if}
 
 	<div class="grid lg:grid-cols-3 gap-4">
 		<!-- LEFT: Détail complet via composant réutilisable (prévisualisation documents incluse) -->

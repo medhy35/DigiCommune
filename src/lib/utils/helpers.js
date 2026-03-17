@@ -70,21 +70,23 @@ export const CONCERNANT_LABELS = {
 };
 
 export const STATUT_LABELS = {
-	recue:               'Reçue',
-	en_cours:            'En cours',
-	complements_requis:  'Compléments requis',
-	traitee:             'Traitée',
-	disponible:          'Disponible',
-	rejetee:             'Rejetée'
+	recue:                'Reçue',
+	en_cours:             'En cours',
+	complements_requis:   'Compléments requis',
+	complements_fournis:  'Compléments fournis',
+	traitee:              'Traitée',
+	disponible:           'Disponible',
+	rejetee:              'Rejetée'
 };
 
 export const STATUT_COLORS = {
-	recue:               'badge-recue',
-	en_cours:            'badge-en_cours',
-	complements_requis:  'badge-complements_requis',
-	traitee:             'badge-traitee',
-	disponible:          'badge-disponible',
-	rejetee:             'badge-rejetee'
+	recue:                'badge-recue',
+	en_cours:             'badge-en_cours',
+	complements_requis:   'badge-complements_requis',
+	complements_fournis:  'badge-complements_fournis',
+	traitee:              'badge-traitee',
+	disponible:           'badge-disponible',
+	rejetee:              'badge-rejetee'
 };
 
 export const MODE_RECEPTION_LABELS = {

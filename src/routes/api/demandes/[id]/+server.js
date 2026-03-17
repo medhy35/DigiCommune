@@ -103,6 +103,23 @@ export async function PATCH({ params, request }) {
 		}});
 	}
 
+	// ── Dépôt de compléments par le citoyen ─────────────────
+	if (body.complement_fourni) {
+		demande.complement_fourni = { ...body.complement_fourni, date: now };
+		demande.statut = 'complements_fournis';
+		demande.historique.push({
+			statut: 'complements_fournis',
+			date:   now,
+			note:   `Le citoyen a déposé ${body.complement_fourni.documents?.length || 0} document(s) en ligne`,
+			par:    demande.demandeur ? `${demande.demandeur.prenom} ${demande.demandeur.nom}` : 'Citoyen'
+		});
+		createNotification('agent', 'info', `Compléments reçus — le citoyen a déposé ses documents pour le dossier ${params.id}`, params.id);
+		secLogs.push({ type: 'complement_fourni', acteur: 'citoyen', details: {
+			demande_id: params.id,
+			nb_docs:    body.complement_fourni.documents?.length || 0
+		}});
+	}
+
 	// ── Note interne ────────────────────────────────────────
 	if (body.note_interne) {
 		demande.historique.push({ statut: demande.statut, date: now, note: body.note_interne, par: parName, type: 'note' });
