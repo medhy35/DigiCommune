@@ -19,6 +19,16 @@
       "cas_critique": true
     }
   },
+  "rdv": {
+    "jours_ouvrables": [1, 2, 3, 4, 5],
+    "heure_debut": "08:00",
+    "heure_fin": "16:00",
+    "duree_creneau": 30,
+    "max_rdv_par_creneau": 3,
+    "delai_min_jours": 1,
+    "delai_max_jours": 30,
+    "lieu": "Mairie"
+  },
   "global": {
     "modules": {
       "naissance": true,
@@ -33,13 +43,37 @@
       "certificat_vie_entretien": true,
       "certificat_vie_adulte": true,
       "fiche_familiale": true,
-      "fiche_individuelle": true
+      "fiche_individuelle": true,
+      "rdv": true
     },
     "locked_params": [],
     "frais_copie": 500,
     "frais_copie_integrale": 2500,
+    "frais_urgence": 1500,
+    "frais_fixes": {
+      "attestation_concubinage": 500,
+      "legalisation": 500,
+      "duplicata_livret": 5500,
+      "certificat_vie_entretien": 1000,
+      "fiche_familiale": 5500,
+      "fiche_individuelle": 5500
+    },
     "sla_heures_defaut": 48,
     "delai_declaration_naissance_jours": 90,
-    "delai_declaration_deces_jours": 15
+    "delai_declaration_deces_jours": 15,
+    "max_pieces_jointes": 5,
+    "whatsapp_actif": true,
+    "notif_agent_nouvelle_demande": true,
+    "notif_agent_escalade_resolue": true,
+    "notif_agent_reassignation": true,
+    "notif_superviseur_nouvelle_escalade": true,
+    "notif_maire_cas_critique": true,
+    "langue": "fr",
+    "timezone": "Africa/Abidjan",
+    "format_date": "dd/mm/yyyy",
+    "securite_session_heures": 8,
+    "theme": "light",
+    "animations": true,
+    "taille_police": "normal"
   }
 }

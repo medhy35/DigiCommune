@@ -332,6 +332,8 @@
 					<option value="">Tous statuts</option>
 					<option value="recue">Reçue</option>
 					<option value="en_cours">En cours</option>
+					<option value="complements_requis">Compléments requis</option>
+					<option value="complements_fournis">Compléments fournis</option>
 					<option value="traitee">Traitée</option>
 					<option value="disponible">Disponible</option>
 					<option value="rejetee">Rejetée</option>

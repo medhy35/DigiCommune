@@ -14,7 +14,11 @@
 	];
 
 	const STEP_ORDER = ['recue', 'en_cours', 'traitee', 'disponible'];
-	$: currentIndex = statut === 'rejetee' ? -1 : STEP_ORDER.indexOf(statut);
+	// complements_requis et complements_fournis se positionnent après en_cours (index 1)
+	const STATUS_TO_STEP = { complements_requis: 1, complements_fournis: 1 };
+	$: currentIndex = statut === 'rejetee'
+		? -1
+		: (STATUS_TO_STEP[statut] ?? STEP_ORDER.indexOf(statut));
 
 	function getStepEntry(stepKey) {
 		return historique.filter(h => h.statut === stepKey).pop();

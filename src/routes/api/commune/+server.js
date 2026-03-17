@@ -1,10 +1,14 @@
 import { json } from '@sveltejs/kit';
-import { readFileSync } from 'fs';
-import { join } from 'path';
-
-const DATA_DIR = join(process.cwd(), 'data');
+import { readCommune, writeCommune, appendSecurityLog } from '$lib/server/data.js';
 
 export function GET() {
-	const commune = JSON.parse(readFileSync(join(DATA_DIR, 'commune.json'), 'utf-8'));
-	return json(commune);
+	return json(readCommune());
+}
+
+export async function PUT({ request }) {
+	const data    = await request.json();
+	const updated = { ...readCommune(), ...data };
+	writeCommune(updated);
+	appendSecurityLog('identite_change', 'superadmin', { champs: Object.keys(data) });
+	return json({ ok: true, commune: updated });
 }

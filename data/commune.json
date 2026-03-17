@@ -1,10 +1,14 @@
 {
   "nom": "Mairie de Cocody",
+  "nom_app": "CiviCI",
   "region": "District Autonome d'Abidjan",
   "adresse": "Boulevard Hassan II, Cocody, Abidjan",
   "telephone": "+225 27 22 44 45 46",
   "email": "contact@mairie-cocody.ci",
   "site": "www.mairie-cocody.ci",
   "maire": "Jean-Marc Gnangoran",
-  "slogan": "Au service de nos concitoyens"
+  "slogan": "Au service de nos concitoyens",
+  "horaires_ouverture": "Lun–Ven 7h30–16h00 · Sam 8h00–12h00",
+  "couleur_primaire": "#009A44",
+  "logo": null
 }

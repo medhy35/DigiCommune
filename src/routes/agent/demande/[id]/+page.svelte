@@ -82,6 +82,49 @@
 		savingActe = false;
 	}
 
+	// Complément modal
+	const ITEMS_COMPLEMENT = [
+		'Copie de la CNI / passeport',
+		'Acte de naissance original',
+		'Justificatif de domicile',
+		'Photo d\'identité récente',
+		'Certificat de résidence',
+		'Livret de famille',
+		'Déclaration sur l\'honneur',
+		'Autre pièce justificative'
+	];
+	let showComplementModal = false;
+	let complementMotif = '';
+	let complementItems = [];
+	let complementError = '';
+
+	async function demanderComplements() {
+		complementError = '';
+		if (!complementMotif.trim() && complementItems.length === 0) {
+			complementError = 'Précisez le motif ou les documents manquants.';
+			return;
+		}
+		saving = true;
+		const res = await fetch(`/api/demandes/${id}`, {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				statut: 'complements_requis',
+				note: `Compléments requis${complementItems.length ? ' : ' + complementItems.join(', ') : ''}${complementMotif ? ' — ' + complementMotif : ''}`,
+				complement_demande: { motif: complementMotif, items: complementItems },
+				par: 'agent_001'
+			})
+		});
+		if (res.ok) {
+			demande = await res.json();
+			showComplementModal = false;
+			complementMotif = '';
+			complementItems = [];
+			toast('Demande de compléments envoyée au citoyen');
+		}
+		saving = false;
+	}
+
 	// Escalade modal
 	let showEscaladeModal = false;
 	let escaladeMotif = '';
@@ -251,15 +294,19 @@
 	}
 
 	const NEXT_STATUT = {
-		recue: 'en_cours',
-		en_cours: 'traitee',
-		traitee: 'disponible'
+		recue:               'en_cours',
+		en_cours:            'traitee',
+		complements_requis:  'en_cours',
+		complements_fournis: 'en_cours',
+		traitee:             'disponible'
 	};
 
 	const NEXT_LABEL = {
-		recue: 'Prendre en charge',
-		en_cours: 'Marquer comme traitée',
-		traitee: 'Disponible'
+		recue:               'Prendre en charge',
+		en_cours:            'Marquer comme traitée',
+		complements_requis:  'Reprendre le traitement',
+		complements_fournis: 'Reprendre le traitement',
+		traitee:             'Disponible'
 	};
 </script>
 
@@ -294,6 +341,41 @@
 			<p class="text-sm text-gray-500 mt-0.5">Soumis le {formatDateTime(demande.created_at)}</p>
 		</div>
 	</div>
+
+	<!-- Bannière compléments fournis -->
+	{#if demande.statut === 'complements_fournis' && demande.complement_fourni}
+		<div class="bg-indigo-50 border border-indigo-300 rounded-xl p-4 mb-4">
+			<div class="flex items-start gap-3">
+				<span class="text-2xl flex-shrink-0">📥</span>
+				<div class="flex-1">
+					<p class="font-semibold text-indigo-800 mb-1">Le citoyen a déposé ses documents complémentaires</p>
+					<p class="text-sm text-indigo-700 mb-3">
+						{demande.complement_fourni.documents?.length || 0} document{(demande.complement_fourni.documents?.length || 0) > 1 ? 's' : ''} reçu{(demande.complement_fourni.documents?.length || 0) > 1 ? 's' : ''} en ligne le {demande.complement_fourni.date ? new Date(demande.complement_fourni.date).toLocaleDateString('fr-FR') : ''}.
+					</p>
+					{#if demande.complement_fourni.documents?.length}
+						<ul class="space-y-2 mb-3">
+							{#each demande.complement_fourni.documents as doc}
+								<li class="flex items-center gap-2 text-sm bg-white border border-indigo-200 rounded-lg px-3 py-2">
+									<svg class="w-4 h-4 text-indigo-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+									</svg>
+									<div class="flex-1 min-w-0">
+										<p class="font-medium text-indigo-800 truncate">{doc.label}</p>
+										<p class="text-xs text-gray-400">{doc.nom}</p>
+									</div>
+									{#if doc.data}
+										<a href={doc.data} download={doc.nom} class="text-xs text-indigo-600 hover:text-indigo-800 border border-indigo-200 rounded px-2 py-0.5 hover:bg-indigo-50 transition-colors">
+											Télécharger
+										</a>
+									{/if}
+								</li>
+							{/each}
+						</ul>
+					{/if}
+				</div>
+			</div>
+		</div>
+	{/if}
 
 	<div class="grid lg:grid-cols-3 gap-4">
 		<!-- LEFT: Détail complet via composant réutilisable (prévisualisation documents incluse) -->
@@ -498,11 +580,22 @@
 				</div>
 			{/if}
 
-			<!-- Escalade + Rejeter -->
-			{#if !isEscaladee(demande) && demande.statut !== 'rejetee' && demande.statut !== 'disponible'}
+			<!-- Actions avancées -->
+			{#if !isEscaladee(demande) && demande.statut !== 'rejetee' && demande.statut !== 'disponible' && demande.statut !== 'traitee'}
 				<div class="card">
 					<h3 class="font-syne font-semibold text-gray-700 mb-3">Actions avancées</h3>
 					<div class="space-y-2">
+						{#if demande.statut === 'en_cours'}
+							<button
+								on:click={() => { showComplementModal = true; complementError = ''; }}
+								class="w-full px-4 py-2.5 border-2 border-purple-200 text-purple-700 hover:bg-purple-50 font-semibold text-sm rounded-lg transition-all flex items-center justify-center gap-2"
+							>
+								<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+								</svg>
+								Demander des compléments
+							</button>
+						{/if}
 						<button
 							on:click={() => showEscaladeModal = true}
 							class="w-full px-4 py-2.5 border-2 border-orange-300 text-orange-700 hover:bg-orange-50 font-semibold text-sm rounded-lg transition-all flex items-center justify-center gap-2"
@@ -651,6 +744,80 @@
 						</svg>
 					{/if}
 					Confirmer le rejet
+				</button>
+			</div>
+		</div>
+	</div>
+{/if}
+
+<!-- MODAL COMPLEMENTS -->
+{#if showComplementModal}
+	<div class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" on:click|self={() => showComplementModal = false}>
+		<div class="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6">
+			<div class="flex items-start justify-between mb-4">
+				<div>
+					<h3 class="font-syne font-bold text-lg text-gray-800">Demander des compléments</h3>
+					<p class="text-sm text-gray-500 mt-0.5">Dossier {demande.id}</p>
+				</div>
+				<button on:click={() => showComplementModal = false} class="text-gray-400 hover:text-gray-600 p-1">
+					<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+					</svg>
+				</button>
+			</div>
+
+			<div class="bg-purple-50 border border-purple-100 rounded-xl p-3 mb-4 text-sm text-purple-700">
+				📋 Le citoyen verra cette demande dans sa page de suivi et saura exactement quoi fournir.
+			</div>
+
+			<!-- Documents manquants -->
+			<div class="mb-4">
+				<p class="text-sm font-medium text-gray-700 mb-2">Documents / pièces manquants</p>
+				<div class="grid grid-cols-2 gap-2">
+					{#each ITEMS_COMPLEMENT as item}
+						<label class="flex items-center gap-2 text-sm cursor-pointer">
+							<input
+								type="checkbox"
+								class="rounded border-gray-300 text-purple-600"
+								checked={complementItems.includes(item)}
+								on:change={e => {
+									if (e.target.checked) complementItems = [...complementItems, item];
+									else complementItems = complementItems.filter(i => i !== item);
+								}}
+							/>
+							<span class="text-gray-700">{item}</span>
+						</label>
+					{/each}
+				</div>
+			</div>
+
+			<!-- Message personnalisé -->
+			<div class="mb-4">
+				<label class="label text-xs" for="complement-motif">Message complémentaire <span class="text-gray-400">(optionnel)</span></label>
+				<textarea
+					id="complement-motif"
+					bind:value={complementMotif}
+					rows="3"
+					class="input-field resize-none {complementError ? 'border-red-400' : ''}"
+					placeholder="Ex : Votre acte de naissance doit être en original et dater de moins de 3 mois..."
+				></textarea>
+				{#if complementError}<p class="text-xs text-red-500 mt-1">{complementError}</p>{/if}
+			</div>
+
+			<div class="flex gap-3 justify-end">
+				<button on:click={() => showComplementModal = false} class="btn-ghost">Annuler</button>
+				<button
+					on:click={demanderComplements}
+					class="bg-purple-600 hover:bg-purple-700 text-white font-semibold px-5 py-2.5 rounded-lg transition-all flex items-center gap-2"
+					disabled={saving}
+				>
+					{#if saving}
+						<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+							<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+							<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+						</svg>
+					{/if}
+					Envoyer la demande
 				</button>
 			</div>
 		</div>

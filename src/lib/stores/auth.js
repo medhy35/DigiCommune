@@ -1,6 +1,15 @@
 import { writable, derived } from 'svelte/store';
 import { browser } from '$app/environment';
 
+function logSecurityEvent(type, acteur, details = {}) {
+	if (!browser) return;
+	fetch('/api/security-log', {
+		method:  'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body:    JSON.stringify({ type, acteur, details })
+	}).catch(() => {});
+}
+
 function createAuthStore() {
 	const STORAGE_KEY = 'civici_role';
 
@@ -13,32 +22,35 @@ function createAuthStore() {
 		login(role) {
 			if (browser) localStorage.setItem(STORAGE_KEY, role);
 			set(role);
+			logSecurityEvent('connexion', role, { via: 'login_page' });
 		},
 		logout() {
+			const role = browser ? localStorage.getItem(STORAGE_KEY) : null;
 			if (browser) localStorage.removeItem(STORAGE_KEY);
 			set(null);
+			if (role) logSecurityEvent('deconnexion', role, {});
 		}
 	};
 }
 
 export const authRole = createAuthStore();
 
-export const isAgent = derived(authRole, $role => $role === 'agent');
+export const isAgent      = derived(authRole, $role => $role === 'agent');
 export const isSuperviseur = derived(authRole, $role => $role === 'superviseur');
-export const isMaire = derived(authRole, $role => $role === 'maire');
+export const isMaire      = derived(authRole, $role => $role === 'maire');
 export const isSuperadmin = derived(authRole, $role => $role === 'superadmin');
 export const isAuthenticated = derived(authRole, $role => !!$role);
 
 export const ROLE_LABELS = {
-	agent: 'Agent',
-	superviseur: 'Superviseur',
-	maire: 'Maire',
+	agent:      'Agent',
+	superviseur:'Superviseur',
+	maire:      'Maire',
 	superadmin: 'Super Admin'
 };
 
 export const ROLE_COLORS = {
-	agent: 'bg-blue-100 text-blue-700',
-	superviseur: 'bg-violet-100 text-violet-700',
-	maire: 'bg-primary-100 text-primary-700',
+	agent:      'bg-blue-100 text-blue-700',
+	superviseur:'bg-violet-100 text-violet-700',
+	maire:      'bg-primary-100 text-primary-700',
 	superadmin: 'bg-red-100 text-red-700'
 };

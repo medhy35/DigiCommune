@@ -11,7 +11,8 @@ export const TYPE_ACTE_LABELS = {
 	certificat_vie_entretien: 'Certificat de vie et entretien',
 	certificat_vie_adulte: 'Certificat de vie adulte',
 	fiche_familiale: 'Fiche familiale d\'état civil',
-	fiche_individuelle: 'Fiche individuelle d\'état civil'
+	fiche_individuelle: 'Fiche individuelle d\'état civil',
+	rdv: 'Prise de rendez-vous (retrait)'
 };
 
 export const TYPE_ACTE_ICONS = {
@@ -27,7 +28,22 @@ export const TYPE_ACTE_ICONS = {
 	certificat_vie_entretien: '👨‍👩‍👧',
 	certificat_vie_adulte: '👴',
 	fiche_familiale: '👪',
-	fiche_individuelle: '🙋'
+	fiche_individuelle: '🙋',
+	rdv: '📅'
+};
+
+export const RDV_STATUT_LABELS = {
+	en_attente: 'En attente',
+	confirme:   'Confirmé',
+	effectue:   'Effectué',
+	annule:     'Annulé'
+};
+
+export const RDV_STATUT_COLORS = {
+	en_attente: 'bg-amber-100 text-amber-700',
+	confirme:   'bg-green-100 text-green-700',
+	effectue:   'bg-gray-100 text-gray-600',
+	annule:     'bg-red-100 text-red-600'
 };
 
 /** Frais par type de service. mode: 'per_copy' | 'flat'. montant en FCFA. */
@@ -54,24 +70,52 @@ export const CONCERNANT_LABELS = {
 };
 
 export const STATUT_LABELS = {
-	recue: 'Reçue',
-	en_cours: 'En cours',
-	traitee: 'Traitée',
-	disponible: 'Disponible',
-	rejetee: 'Rejetée'
+	recue:                'Reçue',
+	en_cours:             'En cours',
+	complements_requis:   'Compléments requis',
+	complements_fournis:  'Compléments fournis',
+	traitee:              'Traitée',
+	disponible:           'Disponible',
+	rejetee:              'Rejetée'
 };
 
 export const STATUT_COLORS = {
-	recue: 'badge-recue',
-	en_cours: 'badge-en_cours',
-	traitee: 'badge-traitee',
-	disponible: 'badge-disponible',
-	rejetee: 'badge-rejetee'
+	recue:                'badge-recue',
+	en_cours:             'badge-en_cours',
+	complements_requis:   'badge-complements_requis',
+	complements_fournis:  'badge-complements_fournis',
+	traitee:              'badge-traitee',
+	disponible:           'badge-disponible',
+	rejetee:              'badge-rejetee'
 };
 
 export const MODE_RECEPTION_LABELS = {
 	retrait: 'Retrait en mairie',
 	whatsapp: 'Copie PDF par WhatsApp'
+};
+
+export const NOTIFICATION_ICONS = {
+	nouvelle_demande:   '📋',
+	escalade:           '⚠️',
+	escalade_critique:  '🚨',
+	remboursement:      '💰',
+	info:               'ℹ️'
+};
+
+export const DOC_TYPE_LABELS = {
+	cni:          "Pièce d'identité",
+	extrait:      'Extrait d\'acte',
+	passeport:    'Passeport',
+	justificatif: 'Justificatif',
+	autre:        'Document'
+};
+
+export const DOC_TYPE_ICONS = {
+	cni:          '🪪',
+	extrait:      '📋',
+	passeport:    '📕',
+	justificatif: '📎',
+	autre:        '📄'
 };
 
 export function formatDate(isoString) {
@@ -108,8 +152,8 @@ export function timeAgo(isoString) {
 }
 
 export function getStatutStep(statut) {
-	const steps = ['recue', 'en_cours', 'traitee', 'disponible'];
-	return steps.indexOf(statut);
+	const map = { recue: 0, en_cours: 1, complements_requis: 1, complements_fournis: 1, traitee: 2, disponible: 3 };
+	return map[statut] ?? -1;
 }
 
 export function isEscaladee(demande) {

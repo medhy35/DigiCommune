@@ -5,16 +5,16 @@ export default {
 		extend: {
 			colors: {
 				primary: {
-					50: '#e6f5ee',
-					100: '#c2e5d0',
-					200: '#9dd4b2',
-					300: '#6fbe8e',
-					400: '#3dab72',
-					500: '#009A44',
-					600: '#00883c',
-					700: '#007433',
-					800: '#005f2a',
-					900: '#004a21'
+					50:  'var(--color-p50,  #e6f5ee)',
+					100: 'var(--color-p100, #c2e5d0)',
+					200: 'var(--color-p200, #9dd4b2)',
+					300: 'var(--color-p300, #6fbe8e)',
+					400: 'var(--color-p400, #3dab72)',
+					500: 'var(--color-p500, #009A44)',
+					600: 'var(--color-p600, #00883c)',
+					700: 'var(--color-p700, #007433)',
+					800: 'var(--color-p800, #005f2a)',
+					900: 'var(--color-p900, #004a21)'
 				},
 				accent: {
 					50: '#fff0e6',

@@ -4,8 +4,11 @@
 	import { page } from '$app/stores';
 	import { downloadAttestationDepotPDF } from '$lib/utils/pdf.js';
 	import { toast } from '$lib/stores/toast.js';
+	import CommuneLogo from '$lib/components/CommuneLogo.svelte';
 
 	let currentStep = 1;
+	let modules = {};
+	let globalSettings = {};
 
 	// OTP
 	let otpSent = false;
@@ -39,11 +42,21 @@
 	let errors = {};
 
 	onMount(async () => {
+		const [communeRes, settingsRes] = await Promise.all([
+			fetch('/api/commune'),
+			fetch('/api/settings?role=global')
+		]);
+		commune = await communeRes.json();
+		if (settingsRes.ok) {
+			const data = await settingsRes.json();
+			globalSettings = data.settings || {};
+			modules = globalSettings.modules || {};
+		}
 		// Type passé via navigation state (invisible dans l'URL)
 		const typeFromState = $page.state?.serviceType;
-		if (typeFromState && TYPE_LABELS[typeFromState]) form.type_acte = typeFromState;
-		const res = await fetch('/api/commune');
-		commune = await res.json();
+		if (typeFromState && TYPE_LABELS[typeFromState] && modules[typeFromState] !== false) {
+			form.type_acte = typeFromState;
+		}
 	});
 
 	function sendOtp() {
@@ -222,21 +235,24 @@
 	const ACTES_CIVILS = ['naissance', 'mariage', 'deces'];
 	// Services facturés par copie
 	const PER_COPY_SERVICES = ['naissance', 'mariage', 'deces', 'certification_documents'];
-	// Frais fixes par type
-	const FRAIS_FIXES = {
+
+	$: fraisCopie   = globalSettings.frais_copie   ?? 500;
+	$: fraisFixes   = globalSettings.frais_fixes   ?? {
 		attestation_concubinage: 500, legalisation: 500,
 		duplicata_livret: 5500, certificat_vie_entretien: 1000,
 		fiche_familiale: 5500, fiche_individuelle: 5500
 	};
+	$: whatsappActif = globalSettings.whatsapp_actif !== false;
+	$: slaHeures     = globalSettings.sla_heures_defaut ?? 48;
 
 	$: isActeCivil = ACTES_CIVILS.includes(form.type_acte);
-	$: isPerCopy = PER_COPY_SERVICES.includes(form.type_acte);
+	$: isPerCopy   = PER_COPY_SERVICES.includes(form.type_acte);
 	$: montantTotal = isPerCopy
-		? form.copies * 500
-		: (FRAIS_FIXES[form.type_acte] || 0);
+		? form.copies * fraisCopie
+		: (fraisFixes[form.type_acte] || 0);
 
-	// Groupes de services pour le sélecteur
-	const SERVICE_GROUPS = [
+	// Groupes de services pour le sélecteur (filtrés selon les modules actifs)
+	const ALL_SERVICE_GROUPS = [
 		{
 			label: 'Actes civils', icon: '📄',
 			services: [
@@ -268,6 +284,10 @@
 			]
 		}
 	];
+
+	$: SERVICE_GROUPS = ALL_SERVICE_GROUPS
+		.map(g => ({ ...g, services: g.services.filter(([type]) => modules[type] !== false) }))
+		.filter(g => g.services.length > 0);
 
 	const DOCS_REQUIS = {
 		naissance: [
@@ -326,10 +346,8 @@
 			</svg>
 		</a>
 		<div class="flex items-center gap-2">
-			<div class="w-7 h-7 bg-primary-500 rounded-lg flex items-center justify-center">
-				<span class="text-white font-syne font-bold text-xs">C</span>
-			</div>
-			<span class="font-syne font-semibold text-primary-600">CiviCI</span>
+			<CommuneLogo {commune} size="w-7 h-7" />
+			<span class="font-syne font-semibold text-primary-600">{commune?.nom_app || 'CiviCI'}</span>
 		</div>
 		<span class="text-gray-200">|</span>
 		<span class="text-gray-500 text-sm">Nouvelle demande</span>
@@ -342,7 +360,7 @@
 	<div class="text-center py-6">
 		<div class="w-20 h-20 bg-primary-100 rounded-full flex items-center justify-center text-4xl mx-auto mb-5">🎉</div>
 		<h1 class="font-syne font-bold text-2xl text-gray-800 mb-2">Demande envoyée !</h1>
-		<p class="text-gray-500 mb-7">Votre dossier a été enregistré. Un agent vous contactera dans les 24h.</p>
+		<p class="text-gray-500 mb-7">Votre dossier a été enregistré. Un agent vous contactera dans les {slaHeures}h.</p>
 		<div class="card mb-4">
 			<p class="text-xs text-gray-400 mb-1">Numéro de dossier</p>
 			<div class="flex items-center justify-center gap-2 mb-3">
@@ -658,7 +676,7 @@
 					<div class="flex-1 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
 						<p class="text-xs text-amber-600">Frais de timbre</p>
 						<p class="font-bold text-amber-800">{montantTotal.toLocaleString('fr-FR')} FCFA</p>
-						<p class="text-xs text-amber-500">500 FCFA × {form.copies} copie{form.copies > 1 ? 's' : ''}</p>
+						<p class="text-xs text-amber-500">{fraisCopie.toLocaleString('fr-FR')} FCFA × {form.copies} copie{form.copies > 1 ? 's' : ''}</p>
 					</div>
 				</div>
 				{#if errors.copies}<p class="text-xs text-red-500 mt-1">{errors.copies}</p>{/if}
@@ -681,15 +699,21 @@
 			<!-- Mode réception -->
 			<div>
 				<label class="label">Mode de réception <span class="text-red-500">*</span></label>
-				<div class="grid grid-cols-2 gap-3">
-					{#each [['retrait','🏛️','Retrait en mairie','Venez récupérer votre acte'],['whatsapp','📱','PDF par WhatsApp','Recevez le PDF sur votre téléphone']] as [val, icon, lbl, desc]}
-						<button type="button" on:click={() => form.mode_reception = val}
-							class="border-2 rounded-xl p-4 text-left transition-all {form.mode_reception === val ? 'border-primary-500 bg-primary-50' : 'border-gray-200 hover:border-gray-300'}">
-							<div class="text-xl mb-1">{icon}</div>
-							<div class="text-sm font-semibold {form.mode_reception === val ? 'text-primary-700' : 'text-gray-700'}">{lbl}</div>
-							<div class="text-xs text-gray-500 mt-0.5">{desc}</div>
+				<div class="grid gap-3" class:grid-cols-2={whatsappActif}>
+					<button type="button" on:click={() => form.mode_reception = 'retrait'}
+						class="border-2 rounded-xl p-4 text-left transition-all {form.mode_reception === 'retrait' ? 'border-primary-500 bg-primary-50' : 'border-gray-200 hover:border-gray-300'}">
+						<div class="text-xl mb-1">🏛️</div>
+						<div class="text-sm font-semibold {form.mode_reception === 'retrait' ? 'text-primary-700' : 'text-gray-700'}">Retrait en mairie</div>
+						<div class="text-xs text-gray-500 mt-0.5">Venez récupérer votre acte</div>
+					</button>
+					{#if whatsappActif}
+						<button type="button" on:click={() => form.mode_reception = 'whatsapp'}
+							class="border-2 rounded-xl p-4 text-left transition-all {form.mode_reception === 'whatsapp' ? 'border-primary-500 bg-primary-50' : 'border-gray-200 hover:border-gray-300'}">
+							<div class="text-xl mb-1">📱</div>
+							<div class="text-sm font-semibold {form.mode_reception === 'whatsapp' ? 'text-primary-700' : 'text-gray-700'}">PDF par WhatsApp</div>
+							<div class="text-xs text-gray-500 mt-0.5">Recevez le PDF sur votre téléphone</div>
 						</button>
-					{/each}
+					{/if}
 				</div>
 			</div>
 		</div>
@@ -719,7 +743,7 @@
 				<p class="text-xs text-gray-400 mb-0.5">Montant à payer</p>
 				<p class="font-syne font-bold text-3xl text-gray-800">{montantTotal.toLocaleString('fr-FR')} <span class="text-base font-normal text-gray-400">FCFA</span></p>
 				<p class="text-xs text-gray-400 mt-0.5">
-				{#if isPerCopy}500 FCFA × {form.copies} copie{form.copies > 1 ? 's' : ''} · {/if}
+				{#if isPerCopy}{fraisCopie.toLocaleString('fr-FR')} FCFA × {form.copies} copie{form.copies > 1 ? 's' : ''} · {/if}
 				{TYPE_ICONS[form.type_acte] || ''} {TYPE_LABELS[form.type_acte] || ''}
 			</p>
 			</div>

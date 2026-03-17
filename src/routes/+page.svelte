@@ -1,15 +1,26 @@
 <script>
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
+	import { commune as communeStore } from '$lib/stores/commune.js';
+	import CommuneLogo from '$lib/components/CommuneLogo.svelte';
 
-	let commune = null;
 	let searchNumero = '';
 	let searching = false;
 	let searchError = '';
+	let modules = {};
+	let globalSettings = {};
+
+	$: commune = $communeStore;
+	$: whatsappActif  = globalSettings.whatsapp_actif !== false;
+	$: slaHeures      = globalSettings.sla_heures_defaut ?? 48;
 
 	onMount(async () => {
-		const res = await fetch('/api/commune');
-		commune = await res.json();
+		const res = await fetch('/api/settings?role=global');
+		if (res.ok) {
+			const data = await res.json();
+			globalSettings = data.settings || {};
+			modules = globalSettings.modules || {};
+		}
 	});
 
 	async function handleSearch() {
@@ -78,6 +89,9 @@
 			goto('/demarches', { state: { tab: s.demandeTab } });
 		}
 	}
+
+	$: filteredServices = services.filter(s => modules[s.type] !== false);
+	$: filteredAutresServices = autresServices.filter(s => !s.serviceType || modules[s.serviceType] !== false);
 </script>
 
 <svelte:head>
@@ -88,11 +102,9 @@
 <header class="bg-white border-b border-gray-100 sticky top-0 z-50 shadow-sm">
 	<div class="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
 		<div class="flex items-center gap-3">
-			<div class="w-10 h-10 bg-primary-500 rounded-xl flex items-center justify-center shadow-sm">
-				<span class="text-white font-syne font-bold text-lg leading-none">C</span>
-			</div>
+			<CommuneLogo {commune} size="w-10 h-10" rounded="rounded-xl" shadow="shadow-sm" />
 			<div>
-				<span class="font-syne font-bold text-xl text-primary-600">CiviCI</span>
+				<span class="font-syne font-bold text-xl text-primary-600">{commune?.nom_app || 'CiviCI'}</span>
 				{#if commune}
 					<p class="text-xs text-gray-500 leading-tight">{commune.nom}</p>
 				{/if}
@@ -121,7 +133,7 @@
 			</div>
 			<h1 class="font-syne font-bold text-3xl sm:text-5xl leading-tight mb-4">
 				Vos actes civils<br>en ligne,<br>
-				<span class="text-accent-300">livrés en 24h</span>
+				<span class="text-accent-300">livrés en {slaHeures}h</span>
 			</h1>
 			<p class="text-lg text-primary-100 mb-8 max-w-lg">
 				Demandez votre acte de naissance, de mariage ou de décès depuis chez vous. Nos agents traitent votre dossier et vous contactent rapidement.
@@ -152,7 +164,7 @@
 	</div>
 
 	<div class="grid sm:grid-cols-3 gap-6">
-		{#each services as service}
+		{#each filteredServices as service}
 			<div class="bg-gradient-to-br {service.color} border {service.border} rounded-2xl p-6 flex flex-col hover:shadow-card-hover transition-all duration-300 hover:-translate-y-1">
 				<div class="w-14 h-14 {service.iconBg} rounded-2xl flex items-center justify-center text-2xl mb-4">
 					{service.icon}
@@ -201,7 +213,7 @@
 			</div>
 		</div>
 		<div class="grid sm:grid-cols-2 gap-2.5">
-			{#each autresServices as s}
+			{#each filteredAutresServices as s}
 				<button
 					on:click={() => goToService(s)}
 					class="flex items-center gap-3 p-3.5 rounded-xl border border-gray-100 bg-white hover:border-primary-200 hover:bg-primary-50/30 transition-all group text-left w-full"
@@ -256,20 +268,30 @@
 
 <!-- INFO SECTION -->
 <section class="max-w-6xl mx-auto px-4 sm:px-6 py-16">
-	<div class="grid sm:grid-cols-3 gap-8">
-		{#each [
-			{ icon: '⚡', title: 'Traitement rapide', desc: 'Vos demandes sont traitées en moins de 24 heures par nos agents assermentés.' },
-			{ icon: '📱', title: 'Livraison WhatsApp', desc: 'Recevez votre acte en PDF directement sur votre téléphone via WhatsApp.' },
-			{ icon: '🔒', title: 'Démarche sécurisée', desc: 'Vos données personnelles sont protégées et traitées de manière confidentielle.' }
-		] as item}
+	<div class="grid sm:grid-cols-{whatsappActif ? 3 : 2} gap-8">
+		<div class="flex gap-4">
+			<div class="w-12 h-12 bg-primary-50 rounded-xl flex items-center justify-center text-xl flex-shrink-0">⚡</div>
+			<div>
+				<h3 class="font-syne font-semibold text-gray-800 mb-1">Traitement rapide</h3>
+				<p class="text-sm text-gray-500 leading-relaxed">Vos demandes sont traitées en moins de {slaHeures} heures par nos agents assermentés.</p>
+			</div>
+		</div>
+		{#if whatsappActif}
 			<div class="flex gap-4">
-				<div class="w-12 h-12 bg-primary-50 rounded-xl flex items-center justify-center text-xl flex-shrink-0">{item.icon}</div>
+				<div class="w-12 h-12 bg-primary-50 rounded-xl flex items-center justify-center text-xl flex-shrink-0">📱</div>
 				<div>
-					<h3 class="font-syne font-semibold text-gray-800 mb-1">{item.title}</h3>
-					<p class="text-sm text-gray-500 leading-relaxed">{item.desc}</p>
+					<h3 class="font-syne font-semibold text-gray-800 mb-1">Livraison WhatsApp</h3>
+					<p class="text-sm text-gray-500 leading-relaxed">Recevez votre acte en PDF directement sur votre téléphone via WhatsApp.</p>
 				</div>
 			</div>
-		{/each}
+		{/if}
+		<div class="flex gap-4">
+			<div class="w-12 h-12 bg-primary-50 rounded-xl flex items-center justify-center text-xl flex-shrink-0">🔒</div>
+			<div>
+				<h3 class="font-syne font-semibold text-gray-800 mb-1">Démarche sécurisée</h3>
+				<p class="text-sm text-gray-500 leading-relaxed">Vos données personnelles sont protégées et traitées de manière confidentielle.</p>
+			</div>
+		</div>
 	</div>
 </section>
 
@@ -279,10 +301,8 @@
 		<div class="flex flex-col sm:flex-row justify-between gap-8">
 			<div>
 				<div class="flex items-center gap-2 mb-3">
-					<div class="w-8 h-8 bg-primary-500 rounded-lg flex items-center justify-center">
-						<span class="text-white font-syne font-bold text-sm">C</span>
-					</div>
-					<span class="font-syne font-bold text-white text-lg">CiviCI</span>
+					<CommuneLogo {commune} />
+					<span class="font-syne font-bold text-white text-lg">{commune?.nom_app || 'CiviCI'}</span>
 				</div>
 				{#if commune}
 					<p class="text-sm">{commune.nom}</p>
@@ -302,13 +322,14 @@
 				<h4 class="font-syne font-semibold text-white mb-3">Informations</h4>
 				<ul class="space-y-1.5 text-sm">
 					<li>Service disponible 24h/24</li>
-					<li>Réponse sous 24 heures</li>
+					<li>Réponse sous {slaHeures} heures</li>
+					{#if commune?.horaires_ouverture}<li>{commune.horaires_ouverture}</li>{/if}
 					<li>Gratuit pour le citoyen</li>
 				</ul>
 			</div>
 		</div>
 		<div class="border-t border-gray-700 mt-8 pt-6 text-center text-xs text-gray-500">
-			© 2025 CiviCI – Portail de gestion municipal de la Côte d'Ivoire. Tous droits réservés.
+			© {new Date().getFullYear()} {commune?.nom_app || 'CiviCI'} – Portail de gestion municipal de la Côte d'Ivoire. Tous droits réservés.
 		</div>
 	</div>
 </footer>

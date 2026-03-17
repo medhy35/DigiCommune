@@ -3,6 +3,7 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { authRole, ROLE_LABELS, ROLE_COLORS } from '$lib/stores/auth.js';
+	import CommuneLogo from '$lib/components/CommuneLogo.svelte';
 
 	export let commune = null;
 	export let escaladeCount = 0;
@@ -122,10 +123,8 @@
 			<!-- Left: Logo + Nav -->
 			<div class="flex items-center gap-6">
 				<a href="/" class="flex items-center gap-2 mr-2">
-					<div class="w-8 h-8 bg-primary-500 rounded-lg flex items-center justify-center">
-						<span class="text-white font-syne font-bold text-sm">C</span>
-					</div>
-					<span class="font-syne font-bold text-primary-600 hidden sm:block">CiviCI</span>
+					<CommuneLogo {commune} />
+					<span class="font-syne font-bold text-primary-600 hidden sm:block">{commune?.nom_app || 'CiviCI'}</span>
 				</a>
 
 				{#each currentNav as item}

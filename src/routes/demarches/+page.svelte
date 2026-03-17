@@ -2,6 +2,8 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { onMount } from 'svelte';
+	import { commune } from '$lib/stores/commune.js';
+	import CommuneLogo from '$lib/components/CommuneLogo.svelte';
 
 	const VALID_TABS = ['naissance', 'mariage', 'deces', 'attestations', 'certifications', 'livret', 'certificats'];
 	let activeTab = 'naissance';
@@ -399,10 +401,8 @@
 			</svg>
 		</a>
 		<div class="flex items-center gap-2">
-			<div class="w-7 h-7 bg-primary-500 rounded-lg flex items-center justify-center">
-				<span class="text-white font-syne font-bold text-xs">C</span>
-			</div>
-			<span class="font-syne font-semibold text-primary-600">CiviCI</span>
+			<CommuneLogo commune={$commune} size="w-7 h-7" />
+			<span class="font-syne font-semibold text-primary-600">{$commune?.nom_app || 'CiviCI'}</span>
 		</div>
 		<span class="text-gray-300">|</span>
 		<span class="text-gray-600 text-sm font-medium">Guide des démarches</span>

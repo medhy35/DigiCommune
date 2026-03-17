@@ -5,6 +5,7 @@
 	import StatusBadge from '$lib/components/StatusBadge.svelte';
 	import { TYPE_ACTE_LABELS, TYPE_ACTE_ICONS, CONCERNANT_LABELS, MODE_RECEPTION_LABELS, formatDate, formatDateTime } from '$lib/utils/helpers.js';
 	import { downloadAttestationDepotPDF, downloadRecuPaiementPDF } from '$lib/utils/pdf.js';
+	import CommuneLogo from '$lib/components/CommuneLogo.svelte';
 
 	let demande = null;
 	let commune = null;
@@ -55,10 +56,8 @@
 			</svg>
 		</a>
 		<div class="flex items-center gap-2">
-			<div class="w-7 h-7 bg-primary-500 rounded-lg flex items-center justify-center">
-				<span class="text-white font-syne font-bold text-xs">C</span>
-			</div>
-			<span class="font-syne font-semibold text-primary-600">CiviCI</span>
+			<CommuneLogo {commune} size="w-7 h-7" />
+			<span class="font-syne font-semibold text-primary-600">{commune?.nom_app || 'CiviCI'}</span>
 		</div>
 		<span class="text-gray-300">|</span>
 		<span class="font-mono text-sm text-gray-600">{numero}</span>
@@ -129,6 +128,45 @@
 			<h2 class="font-syne font-semibold text-gray-700 mb-4">Avancement de votre dossier</h2>
 			<Timeline historique={demande.historique} statut={demande.statut} />
 		</div>
+
+		<!-- Compléments requis -->
+		{#if demande.statut === 'complements_requis' && demande.complement_demande}
+			<div class="bg-purple-50 border border-purple-200 rounded-xl p-4 mb-4">
+				<div class="flex items-start gap-3">
+					<span class="text-2xl flex-shrink-0">📋</span>
+					<div class="flex-1">
+						<p class="font-semibold text-purple-800 mb-1">Des compléments vous sont demandés</p>
+						<p class="text-sm text-purple-700 mb-3">
+							La mairie a besoin d'informations ou de documents supplémentaires pour traiter votre dossier.
+						</p>
+						{#if demande.complement_demande.items?.length}
+							<div class="mb-3">
+								<p class="text-xs font-semibold text-purple-700 uppercase tracking-wide mb-2">Documents à fournir :</p>
+								<ul class="space-y-1">
+									{#each demande.complement_demande.items as item}
+										<li class="flex items-center gap-2 text-sm text-purple-800">
+											<svg class="w-4 h-4 text-purple-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+											</svg>
+											{item}
+										</li>
+									{/each}
+								</ul>
+							</div>
+						{/if}
+						{#if demande.complement_demande.motif}
+							<div class="bg-purple-100 rounded-lg p-3 text-sm text-purple-800">
+								<p class="font-medium mb-0.5">Message de la mairie :</p>
+								<p>{demande.complement_demande.motif}</p>
+							</div>
+						{/if}
+						<p class="text-xs text-purple-600 mt-3">
+							📍 Présentez-vous à la mairie avec les documents requis ou contactez-nous au numéro indiqué sur votre attestation de dépôt.
+						</p>
+					</div>
+				</div>
+			</div>
+		{/if}
 
 		<!-- Message mode retrait -->
 		{#if demande.statut === 'disponible' && demande.mode_reception === 'retrait'}

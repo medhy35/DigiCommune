@@ -3,7 +3,7 @@
 	import { page } from '$app/stores';
 	import Timeline from '$lib/components/Timeline.svelte';
 	import StatusBadge from '$lib/components/StatusBadge.svelte';
-	import { TYPE_ACTE_LABELS, TYPE_ACTE_ICONS, CONCERNANT_LABELS, MODE_RECEPTION_LABELS, formatDateTime } from '$lib/utils/helpers.js';
+	import { TYPE_ACTE_LABELS, TYPE_ACTE_ICONS, CONCERNANT_LABELS, MODE_RECEPTION_LABELS, formatDateTime, RDV_STATUT_LABELS, RDV_STATUT_COLORS } from '$lib/utils/helpers.js';
 	import { downloadAttestationDepotPDF, downloadRecuPaiementPDF, downloadSuiviCompletPDF } from '$lib/utils/pdf.js';
 
 	let numero = '';
@@ -17,6 +17,55 @@
 	let genRecuLoading = false;
 	let genSuiviLoading = false;
 
+	// Compléments — upload en ligne
+	let uploadedComplements = {};   // { index: { name, size, type, data } }
+	let complementUploading = false;
+	let complementDone = false;
+
+	function handleComplementFile(index, event) {
+		const file = event.target.files[0];
+		if (!file) return;
+		const reader = new FileReader();
+		reader.onload = (e) => {
+			uploadedComplements[index] = { name: file.name, size: file.size, type: file.type, data: e.target.result };
+			uploadedComplements = { ...uploadedComplements };
+		};
+		reader.readAsDataURL(file);
+	}
+
+	async function envoyerComplements() {
+		if (Object.keys(uploadedComplements).length === 0) return;
+		complementUploading = true;
+		const docs = Object.entries(uploadedComplements).map(([idx, f]) => ({
+			label: demande.complement_demande.items?.[idx] || `Document ${+idx + 1}`,
+			nom: f.name, taille: f.size, mimetype: f.type, data: f.data
+		}));
+		const res = await fetch(`/api/demandes/${demande.id}`, {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ complement_fourni: { documents: docs } })
+		});
+		if (res.ok) {
+			demande = await res.json();
+			complementDone = true;
+			uploadedComplements = {};
+		}
+		complementUploading = false;
+	}
+
+	// Rendez-vous
+	let rdvModuleActif = false;
+	let rdvCfg         = null;
+	let rdvExistant    = null;
+	let rdvLoading     = false;
+	let rdvDate        = '';
+	let rdvMinDate     = '';
+	let rdvMaxDate     = '';
+	let rdvCreneaux    = [];
+	let rdvHeure       = '';
+	let rdvBooking     = false;
+	let rdvError       = '';
+
 	onMount(async () => {
 		// Vient de la confirmation de demande (state passé sans paramètre URL)
 		const fromState = $page.state?.demande;
@@ -24,8 +73,20 @@
 			demande = fromState;
 			numero = fromState.id;
 		}
-		const cRes = await fetch('/api/commune');
+		const [cRes, sRes] = await Promise.all([fetch('/api/commune'), fetch('/api/settings?role=global')]);
 		if (cRes.ok) commune = await cRes.json();
+		if (sRes.ok) {
+			const sd = await sRes.json();
+			rdvModuleActif = sd.settings?.global?.modules?.rdv === true;
+			rdvCfg = sd.settings?.rdv || null;
+			const delay = rdvCfg?.delai_min_jours ?? 1;
+			const maxD  = rdvCfg?.delai_max_jours ?? 30;
+			const d1 = new Date(); d1.setDate(d1.getDate() + delay);
+			const d2 = new Date(); d2.setDate(d2.getDate() + maxD);
+			rdvMinDate = d1.toISOString().slice(0,10);
+			rdvMaxDate = d2.toISOString().slice(0,10);
+		}
+		if (fromState && rdvModuleActif) await loadRdvForDemande(fromState);
 	});
 
 	async function handleSearch() {
@@ -39,6 +100,7 @@
 			const d = await res.json();
 			if (d.demandeur.nom.toLowerCase() === nom.trim().toLowerCase()) {
 				demande = d;
+				if (rdvModuleActif) await loadRdvForDemande(d);
 			} else {
 				searchError = 'Aucune demande trouvée avec ces informations. Vérifiez votre numéro et votre nom de famille.';
 			}
@@ -53,6 +115,55 @@
 		numero = '';
 		nom = '';
 		searchError = '';
+	}
+
+	async function loadRdvForDemande(d) {
+		if (!d || d.mode_reception !== 'retrait' || d.statut !== 'disponible') return;
+		rdvLoading = true;
+		const res = await fetch(`/api/rdv?demande_id=${d.id}`);
+		if (res.ok) {
+			const list = await res.json();
+			rdvExistant = list.find(r => r.statut !== 'annule') || null;
+		}
+		rdvLoading = false;
+	}
+
+	async function loadCreneaux() {
+		if (!rdvDate) return;
+		rdvHeure = '';
+		rdvCreneaux = [];
+		const res = await fetch(`/api/rdv?creneaux=${rdvDate}`);
+		if (res.ok) rdvCreneaux = await res.json();
+	}
+
+	async function prendreRdv() {
+		if (!rdvDate || !rdvHeure) return;
+		rdvBooking = true;
+		rdvError   = '';
+		const res = await fetch('/api/rdv', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				demande_id: demande.id,
+				demandeur:  { nom: demande.demandeur.nom, prenom: demande.demandeur.prenom, telephone: demande.demandeur.telephone },
+				date_rdv:   rdvDate,
+				heure_rdv:  rdvHeure
+			})
+		});
+		if (res.ok) {
+			rdvExistant = await res.json();
+		} else {
+			const err = await res.json();
+			rdvError = err.error || 'Erreur lors de la prise de rendez-vous.';
+		}
+		rdvBooking = false;
+	}
+
+	async function annulerRdv() {
+		if (!rdvExistant) return;
+		await fetch(`/api/rdv/${rdvExistant.id}?acteur=citoyen`, { method: 'DELETE' });
+		rdvExistant = null;
+		rdvDate = ''; rdvHeure = ''; rdvCreneaux = [];
 	}
 
 	async function genAttestation() {
@@ -231,15 +342,188 @@
 		<Timeline historique={demande.historique} statut={demande.statut} />
 	</div>
 
+	<!-- Compléments requis / fournis -->
+	{#if demande.complement_demande}
+		{#if demande.statut === 'complements_requis'}
+			<div class="bg-purple-50 border border-purple-200 rounded-xl p-4 mb-4">
+				<div class="flex items-start gap-3">
+					<span class="text-2xl flex-shrink-0">📋</span>
+					<div class="flex-1">
+						<p class="font-semibold text-purple-800 mb-1">Des compléments vous sont demandés</p>
+						<p class="text-sm text-purple-700 mb-3">La mairie a besoin de documents supplémentaires pour traiter votre dossier.</p>
+						{#if demande.complement_demande.items?.length}
+							<div class="mb-3">
+								<p class="text-xs font-semibold text-purple-700 uppercase tracking-wide mb-2">Documents à fournir :</p>
+								<ul class="space-y-3">
+									{#each demande.complement_demande.items as item, i}
+										<li class="flex flex-col gap-1">
+											<div class="flex items-center gap-2 text-sm text-purple-800">
+												<svg class="w-4 h-4 text-purple-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+												</svg>
+												{item}
+											</div>
+											{#if uploadedComplements[i]}
+												<div class="flex items-center gap-2 bg-green-50 border border-green-200 rounded-lg px-3 py-1.5 text-xs text-green-700 ml-6">
+													<svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+													{uploadedComplements[i].name}
+													<button on:click={() => { const u = {...uploadedComplements}; delete u[i]; uploadedComplements = u; }} class="ml-auto text-red-400 hover:text-red-600">✕</button>
+												</div>
+											{:else}
+												<label class="ml-6 cursor-pointer inline-flex items-center gap-1.5 text-xs text-purple-600 hover:text-purple-800 border border-purple-200 hover:border-purple-400 bg-white rounded-lg px-3 py-1.5 transition-all w-fit">
+													<svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+													Joindre le fichier
+													<input type="file" class="hidden" accept=".jpg,.jpeg,.png,.pdf" on:change={(e) => handleComplementFile(i, e)} />
+												</label>
+											{/if}
+										</li>
+									{/each}
+								</ul>
+							</div>
+						{/if}
+						{#if demande.complement_demande.motif}
+							<div class="bg-purple-100 rounded-lg p-3 text-sm text-purple-800 mb-3">
+								<p class="font-medium mb-0.5">Message de la mairie :</p>
+								<p>{demande.complement_demande.motif}</p>
+							</div>
+						{/if}
+						{#if Object.keys(uploadedComplements).length > 0}
+							<button
+								on:click={envoyerComplements}
+								disabled={complementUploading}
+								class="w-full flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold px-4 py-2.5 rounded-lg transition-all"
+							>
+								{#if complementUploading}
+									<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+									Envoi en cours…
+								{:else}
+									<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+									Envoyer {Object.keys(uploadedComplements).length} document{Object.keys(uploadedComplements).length > 1 ? 's' : ''} à la mairie
+								{/if}
+							</button>
+						{:else}
+							<p class="text-xs text-purple-600 mt-1">
+								📍 Joignez vos documents ci-dessus ou présentez-vous à la mairie.
+							</p>
+						{/if}
+					</div>
+				</div>
+			</div>
+		{:else if demande.statut === 'complements_fournis'}
+			<div class="bg-indigo-50 border border-indigo-200 rounded-xl p-4 mb-4 flex items-start gap-3">
+				<span class="text-2xl flex-shrink-0">✅</span>
+				<div>
+					<p class="font-semibold text-indigo-800">Documents envoyés avec succès</p>
+					<p class="text-sm text-indigo-700 mt-1">La mairie a bien reçu vos documents complémentaires. Votre dossier est en cours de traitement.</p>
+				</div>
+			</div>
+		{/if}
+	{/if}
+
 	<!-- Messages disponibilité -->
 	{#if demande.statut === 'disponible' && demande.mode_reception === 'retrait'}
-		<div class="bg-primary-50 border border-primary-200 rounded-xl p-4 flex gap-3 mb-4">
-			<span class="text-2xl">🏛️</span>
-			<div>
-				<p class="font-semibold text-primary-800">Votre acte est prêt !</p>
-				<p class="text-sm text-primary-700 mt-1">Venez le retirer à la mairie muni de votre pièce d'identité.</p>
+		{#if rdvModuleActif}
+			<!-- ── Module RDV actif ── -->
+			{#if rdvLoading}
+				<div class="bg-gray-50 rounded-xl p-4 flex items-center gap-3 mb-4 text-sm text-gray-400 animate-pulse">
+					<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+					Vérification des rendez-vous…
+				</div>
+			{:else if rdvExistant}
+				<!-- RDV existant -->
+				<div class="bg-green-50 border border-green-200 rounded-xl p-4 mb-4">
+					<div class="flex items-start gap-3">
+						<span class="text-2xl">📅</span>
+						<div class="flex-1">
+							<p class="font-semibold text-green-800">Rendez-vous confirmé !</p>
+							<p class="text-sm text-green-700 mt-1">
+								Le {new Date(rdvExistant.date_rdv + 'T12:00:00').toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long' })}
+								à {rdvExistant.heure_rdv}
+								— {rdvExistant.lieu || 'Mairie'}
+							</p>
+							<span class="inline-block mt-2 text-xs px-2 py-0.5 rounded-full font-medium {RDV_STATUT_COLORS[rdvExistant.statut]}">
+								{RDV_STATUT_LABELS[rdvExistant.statut] || rdvExistant.statut}
+							</span>
+						</div>
+					</div>
+					{#if rdvExistant.statut !== 'effectue' && rdvExistant.statut !== 'annule'}
+						<button on:click={annulerRdv} class="mt-3 text-xs text-red-500 hover:text-red-700 underline">Annuler ce rendez-vous</button>
+					{/if}
+				</div>
+			{:else}
+				<!-- Formulaire de prise de RDV -->
+				<div class="bg-primary-50 border border-primary-200 rounded-xl p-4 mb-4">
+					<div class="flex items-start gap-3 mb-4">
+						<span class="text-2xl">🏛️</span>
+						<div>
+							<p class="font-semibold text-primary-800">Votre acte est prêt !</p>
+							<p class="text-sm text-primary-700 mt-1">Prenez rendez-vous pour venir le retirer à la mairie.</p>
+						</div>
+					</div>
+
+					<!-- Choix de la date -->
+					<div class="space-y-3">
+						<div>
+							<label class="text-xs font-semibold text-primary-700 block mb-1">Choisir une date</label>
+							<input type="date" bind:value={rdvDate} min={rdvMinDate} max={rdvMaxDate}
+								on:change={loadCreneaux}
+								class="input-field text-sm bg-white" />
+						</div>
+
+						<!-- Créneaux horaires -->
+						{#if rdvDate && rdvCreneaux.length === 0}
+							<p class="text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2">La mairie est fermée ce jour-là. Veuillez choisir un autre jour.</p>
+						{:else if rdvCreneaux.length > 0}
+							<div>
+								<label class="text-xs font-semibold text-primary-700 block mb-2">Choisir un créneau</label>
+								<div class="flex flex-wrap gap-2">
+									{#each rdvCreneaux as slot}
+										<button
+											on:click={() => slot.disponible && (rdvHeure = slot.heure)}
+											disabled={!slot.disponible}
+											class="px-3 py-1.5 rounded-lg text-sm font-medium border-2 transition-all
+												{rdvHeure === slot.heure
+													? 'border-primary-500 bg-primary-500 text-white'
+													: slot.disponible
+														? 'border-primary-300 text-primary-700 hover:bg-primary-100'
+														: 'border-gray-200 text-gray-300 cursor-not-allowed bg-gray-50'}"
+										>
+											{slot.heure}
+											{#if !slot.disponible}<span class="text-xs ml-1">Complet</span>{/if}
+										</button>
+									{/each}
+								</div>
+							</div>
+						{/if}
+
+						{#if rdvError}
+							<p class="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">{rdvError}</p>
+						{/if}
+
+						{#if rdvDate && rdvHeure}
+							<button on:click={prendreRdv} disabled={rdvBooking}
+								class="btn-primary w-full justify-center py-2.5 text-sm mt-1">
+								{#if rdvBooking}
+									<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+									Réservation en cours…
+								{:else}
+									📅 Confirmer le rendez-vous du {new Date(rdvDate + 'T12:00:00').toLocaleDateString('fr-FR', { day:'numeric', month:'long' })} à {rdvHeure}
+								{/if}
+							</button>
+						{/if}
+					</div>
+				</div>
+			{/if}
+		{:else}
+			<!-- Module RDV désactivé : message classique -->
+			<div class="bg-primary-50 border border-primary-200 rounded-xl p-4 flex gap-3 mb-4">
+				<span class="text-2xl">🏛️</span>
+				<div>
+					<p class="font-semibold text-primary-800">Votre acte est prêt !</p>
+					<p class="text-sm text-primary-700 mt-1">Venez le retirer à la mairie muni de votre pièce d'identité.</p>
+				</div>
 			</div>
-		</div>
+		{/if}
 	{/if}
 	{#if demande.statut === 'disponible' && demande.mode_reception === 'whatsapp'}
 		<div class="bg-primary-50 border border-primary-200 rounded-xl p-4 flex gap-3 mb-4">
