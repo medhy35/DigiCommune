@@ -3,7 +3,7 @@ import {
 	readDemandes, createDemande, readSettings,
 	createNotification, countDemandesParAgent
 } from '$lib/server/data.js';
-import { registerVerifCode } from '$lib/server/verification.js';
+import { lookupVerifCode } from '$lib/server/verification.js';
 import { TYPE_ACTE_LABELS } from '$lib/utils/helpers.js';
 
 export async function GET({ url }) {
@@ -29,9 +29,9 @@ export async function POST({ request }) {
 	const id  = generateId();
 	const now = new Date().toISOString();
 
-	const codeAttestation = await registerVerifCode('attestation', id);
+	const codeAttestation = await generateUniqueCode();
 	const codePaiement    = body.paiement?.statut === 'paye'
-		? await registerVerifCode('recu', id)
+		? await generateUniqueCode()
 		: null;
 
 	const agentId = await assignAgent();
@@ -83,6 +83,15 @@ function generateId() {
 	const ts   = Math.floor(Date.now() / 1000);
 	const rand = Math.floor(Math.random() * 9000) + 1000;
 	return `CI-${Math.floor(ts / 10000)}${rand}`;
+}
+
+async function generateUniqueCode() {
+	const { randomBytes } = await import('crypto');
+	let code;
+	do {
+		code = randomBytes(4).toString('hex').toUpperCase();
+	} while (await lookupVerifCode(code));
+	return code;
 }
 
 async function assignAgent() {
