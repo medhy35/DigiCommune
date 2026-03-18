@@ -1,78 +1,55 @@
 <script>
 	import { goto } from '$app/navigation';
-	import { authRole } from '$lib/stores/auth.js';
+	import { authUser, authRole } from '$lib/stores/auth.js';
 	import { commune } from '$lib/stores/commune.js';
 	import CommuneLogo from '$lib/components/CommuneLogo.svelte';
 	import { onMount } from 'svelte';
 
 	const ROLE_ROUTES = {
-		agent: '/agent',
+		agent:       '/agent',
 		superviseur: '/superviseur',
-		maire: '/maire',
-		superadmin: '/superadmin'
+		maire:       '/maire',
+		superadmin:  '/superadmin'
 	};
 
 	onMount(() => {
 		if ($authRole) goto(ROLE_ROUTES[$authRole] || '/agent');
 	});
 
-	function loginAs(role) {
-		authRole.login(role);
-		goto(ROLE_ROUTES[role] || '/agent');
+	let email    = '';
+	let password = '';
+	let loginError = '';
+	let loading  = false;
+
+	async function handleLogin() {
+		loginError = '';
+		loading = true;
+		try {
+			const user = await authUser.login(email, password);
+			goto(ROLE_ROUTES[user.role] || '/agent');
+		} catch (e) {
+			loginError = e.message || 'Identifiants incorrects.';
+		} finally {
+			loading = false;
+		}
 	}
 
-	const roles = [
-		{
-			id: 'agent',
-			label: 'Agent',
-			desc: 'Traiter les demandes des citoyens, mettre à jour les statuts et générer les actes.',
-			icon: '👩‍💼',
-			color: 'border-blue-200 hover:border-blue-400 hover:bg-blue-50',
-			badge: 'bg-blue-100 text-blue-700',
-			name: 'Awa Diakité'
-		},
-		{
-			id: 'superviseur',
-			label: 'Superviseur',
-			desc: 'Superviser les agents, traiter les escalades et réassigner les demandes.',
-			icon: '👨‍💻',
-			color: 'border-violet-200 hover:border-violet-400 hover:bg-violet-50',
-			badge: 'bg-violet-100 text-violet-700',
-			name: 'Kadiatou Traoré'
-		},
-		{
-			id: 'maire',
-			label: 'Maire',
-			desc: 'Vue synthétique des statistiques et décisions sur les cas critiques.',
-			icon: '🏛️',
-			color: 'border-primary-200 hover:border-primary-400 hover:bg-primary-50',
-			badge: 'bg-primary-100 text-primary-700',
-			name: 'Jean-Marc Gnangoran'
-		},
-		{
-			id: 'superadmin',
-			label: 'Super Admin',
-			desc: 'Configuration complète de l\'application, gestion des modules, utilisateurs et paramètres système.',
-			icon: '🔐',
-			color: 'border-red-200 hover:border-red-400 hover:bg-red-50',
-			badge: 'bg-red-100 text-red-700',
-			name: 'Administrateur Système'
-		}
-	];
+	function handleKeydown(e) {
+		if (e.key === 'Enter') handleLogin();
+	}
 </script>
 
 <svelte:head>
-	<title>Connexion Back-office – CiviCI</title>
+	<title>Connexion — {$commune?.nom_app || 'DigiCommune'}</title>
 </svelte:head>
 
 <div class="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex flex-col">
-	<!-- Header -->
 	<header class="bg-white border-b border-gray-100 shadow-sm">
 		<div class="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
 			<a href="/" class="flex items-center gap-2">
 				<CommuneLogo commune={$commune} size="w-9 h-9" rounded="rounded-xl" shadow="shadow-sm" />
 				<div>
-					<span class="font-syne font-bold text-primary-600">{$commune?.nom_app || 'CiviCI'}</span>
+					<span class="font-syne font-bold text-primary-600">{$commune?.nom_app || 'DigiCommune'}</span>
 					<p class="text-xs text-gray-400 leading-tight">Espace Back-office</p>
 				</div>
 			</a>
@@ -85,48 +62,82 @@
 		</div>
 	</header>
 
-	<!-- Main -->
 	<main class="flex-1 flex items-center justify-center px-4 py-12">
-		<div class="w-full max-w-3xl">
-			<div class="text-center mb-10">
-				<h1 class="font-syne font-bold text-3xl text-gray-800 mb-2">Accès Back-office</h1>
-				<p class="text-gray-500 max-w-md mx-auto">
-					Connexion simulée pour le POC. Choisissez un profil pour accéder au tableau de bord correspondant.
-				</p>
-				<div class="mt-3 inline-flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-full px-4 py-1.5 text-xs text-amber-700">
-					<svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+		<div class="w-full max-w-sm">
+			<div class="text-center mb-8">
+				<div class="w-16 h-16 bg-primary-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+					<svg class="w-8 h-8 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
 					</svg>
-					Mode démonstration — Aucun mot de passe requis
+				</div>
+				<h1 class="font-syne font-bold text-2xl text-gray-800 mb-1">Connexion</h1>
+				<p class="text-sm text-gray-500">{$commune?.nom || 'Back-office municipal'}</p>
+			</div>
+
+			<div class="bg-white rounded-2xl shadow-card p-8">
+				{#if loginError}
+					<div class="mb-4 bg-red-50 border border-red-200 rounded-xl p-3 flex items-center gap-2 text-sm text-red-700">
+						<svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+						</svg>
+						{loginError}
+					</div>
+				{/if}
+
+				<div class="space-y-4">
+					<div>
+						<label class="block text-sm font-medium text-gray-700 mb-1" for="email">Adresse email</label>
+						<input
+							id="email"
+							type="email"
+							bind:value={email}
+							on:keydown={handleKeydown}
+							class="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-transparent transition-all"
+							placeholder="vous@mairie.ci"
+							autocomplete="email"
+							disabled={loading}
+						/>
+					</div>
+
+					<div>
+						<label class="block text-sm font-medium text-gray-700 mb-1" for="password">Mot de passe</label>
+						<input
+							id="password"
+							type="password"
+							bind:value={password}
+							on:keydown={handleKeydown}
+							class="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-transparent transition-all"
+							placeholder="••••••••"
+							autocomplete="current-password"
+							disabled={loading}
+						/>
+					</div>
+
+					<button
+						on:click={handleLogin}
+						disabled={loading || !email || !password}
+						class="w-full bg-primary-600 hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-2.5 px-4 rounded-xl transition-colors flex items-center justify-center gap-2"
+					>
+						{#if loading}
+							<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+								<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+								<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+							</svg>
+							Connexion…
+						{:else}
+							Se connecter
+						{/if}
+					</button>
 				</div>
 			</div>
 
-			<div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-				{#each roles as role}
-					<button
-						on:click={() => loginAs(role.id)}
-						class="bg-white rounded-2xl border-2 {role.color} p-6 text-left transition-all duration-200 hover:shadow-card-hover hover:-translate-y-0.5 group"
-					>
-						<div class="text-4xl mb-3">{role.icon}</div>
-						<div class="flex items-center gap-2 mb-2">
-							<span class="font-syne font-bold text-lg text-gray-800">{role.label}</span>
-							<span class="text-xs px-2 py-0.5 rounded-full {role.badge} font-medium">{role.label}</span>
-						</div>
-						<p class="text-xs text-gray-500 leading-relaxed mb-3">{role.desc}</p>
-						<p class="text-xs text-gray-400 italic">{role.name}</p>
-						<div class="mt-4 flex items-center gap-1 text-sm font-semibold text-gray-600 group-hover:text-primary-600 transition-colors">
-							Se connecter
-							<svg class="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-							</svg>
-						</div>
-					</button>
-				{/each}
-			</div>
+			<p class="text-center text-xs text-gray-400 mt-6">
+				Accès réservé aux agents municipaux autorisés.
+			</p>
 		</div>
 	</main>
 
 	<footer class="py-4 text-center text-xs text-gray-400">
-		CiviCI — Portail de gestion municipal — Côte d'Ivoire
+		{$commune?.nom || 'DigiCommune'} — Plateforme de gestion municipale
 	</footer>
 </div>

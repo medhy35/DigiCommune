@@ -1,5 +1,5 @@
 import { json } from '@sveltejs/kit';
-import { readSecurityLog, writeSecurityLog, appendSecurityLog } from '$lib/server/data.js';
+import { readSecurityLog, clearSecurityLog, appendSecurityLog } from '$lib/server/data.js';
 
 const TYPE_LABELS = {
 	// Authentification
@@ -41,7 +41,7 @@ const TYPE_LABELS = {
  * GET /api/security-log
  * Paramètres: limit, type, acteur, search, from, to
  */
-export function GET({ url }) {
+export async function GET({ url }) {
 	const limit    = Math.min(parseInt(url.searchParams.get('limit') || '500'), 2000);
 	const type     = url.searchParams.get('type')   || '';
 	const acteur   = url.searchParams.get('acteur') || '';
@@ -49,12 +49,16 @@ export function GET({ url }) {
 	const from     = url.searchParams.get('from');
 	const to       = url.searchParams.get('to');
 
-	let entries = readSecurityLog();
+	// Pass supported filters to data layer; search is handled in JS
+	const filters = {};
+	if (type)   filters.type   = type;
+	if (acteur) filters.acteur = acteur;
+	if (from)   filters.from   = from;
+	if (to)     filters.to     = to;
 
-	if (type)   entries = entries.filter(e => e.type === type);
-	if (acteur) entries = entries.filter(e => e.acteur === acteur);
-	if (from)   entries = entries.filter(e => e.date >= from);
-	if (to)     entries = entries.filter(e => e.date <= to + 'T23:59:59');
+	let entries = await readSecurityLog(filters);
+
+	// search is not supported at DB level — filter in JS
 	if (search) {
 		entries = entries.filter(e =>
 			e.acteur.includes(search) ||
@@ -63,8 +67,14 @@ export function GET({ url }) {
 		);
 	}
 
+	// Normalise date field: SecurityLog has .date as Date object
+	const serialised = entries.slice(0, limit).map(e => ({
+		...e,
+		date: e.date instanceof Date ? e.date.toISOString() : e.date
+	}));
+
 	return json({
-		entries: entries.slice(0, limit),
+		entries: serialised,
 		total:   entries.length,
 		types:   TYPE_LABELS
 	});
@@ -82,15 +92,15 @@ export async function POST({ request }) {
 	const CLIENT_TYPES = ['connexion', 'deconnexion'];
 	if (!CLIENT_TYPES.includes(type)) return json({ error: 'Type non autorisé' }, { status: 403 });
 
-	appendSecurityLog(type, acteur, details || {});
+	await appendSecurityLog(type, acteur, details || {});
 	return json({ ok: true });
 }
 
 /**
  * DELETE /api/security-log — efface tout le journal (superadmin uniquement)
  */
-export function DELETE() {
-	writeSecurityLog([]);
-	appendSecurityLog('journal_efface', 'superadmin', { message: 'Journal de sécurité effacé' });
+export async function DELETE() {
+	await clearSecurityLog();
+	await appendSecurityLog('journal_efface', 'superadmin', { message: 'Journal de sécurité effacé' });
 	return json({ ok: true });
 }

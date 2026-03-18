@@ -1,14 +1,14 @@
 import { json, error } from '@sveltejs/kit';
 import { writeFileSync, existsSync, unlinkSync } from 'fs';
 import { join } from 'path';
-import { readTemplates, writeTemplates, appendSecurityLog } from '$lib/server/data.js';
+import { readTemplates, upsertTemplate, deleteTemplate, appendSecurityLog } from '$lib/server/data.js';
 import { TYPE_ACTE_LABELS } from '$lib/utils/helpers.js';
 
 const TEMPLATES_DIR = join(process.cwd(), 'data', 'templates');
 
 /** GET /api/templates → liste des modèles avec statut */
-export function GET() {
-	const meta = readTemplates();
+export async function GET() {
+	const meta = await readTemplates();
 	const templates = Object.entries(TYPE_ACTE_LABELS).map(([key, label]) => {
 		const t = meta[key];
 		return {
@@ -32,8 +32,7 @@ export async function POST({ request }) {
 	if (!type_acte || !TYPE_ACTE_LABELS[type_acte]) throw error(400, 'Type d\'acte invalide');
 	if (!nom_fichier) throw error(400, 'Nom de fichier manquant');
 
-	const meta = readTemplates();
-	meta[type_acte] = {
+	const templateData = {
 		nom_fichier,
 		taille:      taille || 0,
 		uploaded_at: new Date().toISOString(),
@@ -46,12 +45,12 @@ export async function POST({ request }) {
 		const filePath = join(TEMPLATES_DIR, `${type_acte}.${ext}`);
 		const buffer   = Buffer.from(data.split(',')[1] || data, 'base64');
 		writeFileSync(filePath, buffer);
-		meta[type_acte].file_path = filePath;
-		meta[type_acte].ext       = ext;
+		templateData.file_path = filePath;
+		templateData.ext       = ext;
 	}
 
-	writeTemplates(meta);
-	appendSecurityLog('template_upload', body.uploaded_by || 'superadmin', {
+	await upsertTemplate(type_acte, templateData);
+	await appendSecurityLog('template_upload', body.uploaded_by || 'superadmin', {
 		type_acte,
 		nom_fichier,
 		taille: taille || 0
@@ -60,18 +59,17 @@ export async function POST({ request }) {
 }
 
 /** DELETE /api/templates?type=naissance */
-export function DELETE({ url }) {
+export async function DELETE({ url }) {
 	const type_acte = url.searchParams.get('type');
 	if (!type_acte) throw error(400, 'Type manquant');
 
-	const meta = readTemplates();
+	const meta = await readTemplates();
 	const t    = meta[type_acte];
 	if (t?.file_path && existsSync(t.file_path)) {
 		try { unlinkSync(t.file_path); } catch {}
 	}
-	delete meta[type_acte];
-	writeTemplates(meta);
-	appendSecurityLog('template_delete', 'superadmin', {
+	await deleteTemplate(type_acte);
+	await appendSecurityLog('template_delete', 'superadmin', {
 		type_acte,
 		nom_fichier: t?.nom_fichier || ''
 	});

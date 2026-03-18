@@ -1,10 +1,10 @@
 /**
  * Codes de vérification pour les documents officiels.
- * Structure lean : hash (8 chars) → { demande_id, type }
- * La vérification relit le dossier complet depuis demandes.json.
+ * Les codes sont stockés dans le champ JSONB verification_codes de la demande.
  */
 import { randomBytes } from 'crypto';
-import { readVerifCodes, writeVerifCodes } from './data.js';
+import { lookupVerifCode as lookup } from './data.js';
+import { prisma, getCommuneId } from './db.js';
 
 /** Génère 4 octets aléatoires → 8 chars hex majuscules. Ex : 3K9MXP2Q */
 function makeCode() {
@@ -16,16 +16,25 @@ function makeCode() {
  * @param {'attestation'|'recu'|'acte'} type
  * @param {string} demande_id
  */
-export function registerVerifCode(type, demande_id) {
-	const codes = readVerifCodes();
+export async function registerVerifCode(type, demande_id) {
+	// Generate unique code
 	let code;
-	do { code = makeCode(); } while (codes[code]);
-	codes[code] = { demande_id, type };
-	writeVerifCodes(codes);
+	do {
+		code = makeCode();
+	} while (await lookup(code));
+
+	// Read current verification_codes, merge new code, write back
+	const commune_id = getCommuneId();
+	const current = await prisma.demande.findFirst({
+		where:  { id: demande_id, commune_id },
+		select: { verification_codes: true }
+	});
+	const updated = { ...(current?.verification_codes || {}), [type]: code };
+	await prisma.demande.update({
+		where: { id: demande_id, commune_id },
+		data:  { verification_codes: updated }
+	});
 	return code;
 }
 
-/** Retourne { demande_id, type } ou null si code inconnu. */
-export function lookupVerifCode(code) {
-	return readVerifCodes()[code] || null;
-}
+export { lookupVerifCode } from './data.js';
