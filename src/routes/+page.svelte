@@ -329,7 +329,7 @@
 			</div>
 		</div>
 		<div class="border-t border-gray-700 mt-8 pt-6 text-center text-xs text-gray-500">
-			© {new Date().getFullYear()} {commune?.nom_app || 'CiviCI'} – Portail de gestion municipal de la Côte d'Ivoire. Tous droits réservés.
+			1T3RMEDIATION - eMairie - 2026
 		</div>
 	</div>
 </footer>

@@ -139,6 +139,6 @@
 	</main>
 
 	<footer class="py-4 text-center text-xs text-gray-400">
-		{$commune?.nom || 'DigiCommune'} — Plateforme de gestion municipale
+		1T3RMEDIATION - eMairie - 2026
 	</footer>
 </div>
