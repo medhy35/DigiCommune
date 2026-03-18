@@ -195,6 +195,8 @@
 		user_add:             { label: 'Ajout utilisateur',     color: 'bg-teal-100 text-teal-700' },
 		user_update:          { label: 'Modif utilisateur',     color: 'bg-cyan-100 text-cyan-700' },
 		user_toggle:          { label: 'Activ. utilisateur',    color: 'bg-sky-100 text-sky-700' },
+		user_delete:          { label: 'Suppression compte',    color: 'bg-red-100 text-red-700' },
+		password_reset:       { label: 'Reset mot de passe',   color: 'bg-orange-100 text-orange-700' },
 		template_upload:      { label: 'Modèle chargé',         color: 'bg-purple-100 text-purple-700' },
 		template_delete:      { label: 'Modèle supprimé',       color: 'bg-red-100 text-red-600' },
 		identite_change:      { label: 'Identité mairie',       color: 'bg-primary-100 text-primary-700' },
@@ -491,6 +493,41 @@
 			showToast('Utilisateur modifié');
 		} else {
 			editUserError = 'Erreur lors de la sauvegarde.';
+		}
+	}
+
+	// Suppression utilisateur
+	let confirmDeleteUser = null; // { id, role, nom }
+
+	async function deleteUser(userId, role, nom) {
+		const res = await fetch('/api/admin', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ action: 'delete_user', userId, role })
+		});
+		confirmDeleteUser = null;
+		if (res.ok) {
+			await loadAll();
+			showToast(`Compte de ${nom} supprimé`);
+		} else {
+			showToast('Erreur lors de la suppression', 'error');
+		}
+	}
+
+	// Réinitialisation mot de passe
+	let resetPasswordResult = null; // { nom, password }
+
+	async function resetPassword(userId, role, nom) {
+		const res = await fetch('/api/admin', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ action: 'reset_password', userId, role })
+		});
+		if (res.ok) {
+			const data = await res.json();
+			resetPasswordResult = { nom, password: data.new_password };
+		} else {
+			showToast('Erreur lors de la réinitialisation', 'error');
 		}
 	}
 
@@ -850,9 +887,11 @@
 										{agent.actif !== false ? 'Actif' : 'Inactif'}
 									</span>
 									<button on:click={() => startEdit({ ...agent, role: 'agent' })} class="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-all">Modifier</button>
+									<button on:click={() => resetPassword(agent.id, 'agent', agent.prenom + ' ' + agent.nom)} class="text-xs px-3 py-1.5 rounded-lg border border-blue-200 text-blue-600 hover:bg-blue-50 transition-all">Reset MDP</button>
 									<button on:click={() => toggleUser(agent.id, 'agent')} class="text-xs px-3 py-1.5 rounded-lg border transition-all {agent.actif !== false ? 'border-red-200 text-red-600 hover:bg-red-50' : 'border-primary-200 text-primary-600 hover:bg-primary-50'}">
 										{agent.actif !== false ? 'Désactiver' : 'Réactiver'}
 									</button>
+									<button on:click={() => confirmDeleteUser = { id: agent.id, role: 'agent', nom: agent.prenom + ' ' + agent.nom }} class="text-xs px-3 py-1.5 rounded-lg border border-red-300 text-red-700 hover:bg-red-50 transition-all">Supprimer</button>
 								</div>
 							{/if}
 						{/each}
@@ -892,9 +931,11 @@
 										{sup.actif !== false ? 'Actif' : 'Inactif'}
 									</span>
 									<button on:click={() => startEdit({ ...sup, role: 'superviseur' })} class="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-all">Modifier</button>
+									<button on:click={() => resetPassword(sup.id, 'superviseur', sup.prenom + ' ' + sup.nom)} class="text-xs px-3 py-1.5 rounded-lg border border-blue-200 text-blue-600 hover:bg-blue-50 transition-all">Reset MDP</button>
 									<button on:click={() => toggleUser(sup.id, 'superviseur')} class="text-xs px-3 py-1.5 rounded-lg border transition-all {sup.actif !== false ? 'border-red-200 text-red-600 hover:bg-red-50' : 'border-primary-200 text-primary-600 hover:bg-primary-50'}">
 										{sup.actif !== false ? 'Désactiver' : 'Réactiver'}
 									</button>
+									<button on:click={() => confirmDeleteUser = { id: sup.id, role: 'superviseur', nom: sup.prenom + ' ' + sup.nom }} class="text-xs px-3 py-1.5 rounded-lg border border-red-300 text-red-700 hover:bg-red-50 transition-all">Supprimer</button>
 								</div>
 							{/if}
 						{/each}
@@ -933,9 +974,11 @@
 								{users.maire.actif !== false ? 'Actif' : 'Inactif'}
 							</span>
 							<button on:click={() => startEdit({ ...users.maire, role: 'maire' })} class="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-all">Modifier</button>
+							<button on:click={() => resetPassword(users.maire.id, 'maire', users.maire.prenom + ' ' + users.maire.nom)} class="text-xs px-3 py-1.5 rounded-lg border border-blue-200 text-blue-600 hover:bg-blue-50 transition-all">Reset MDP</button>
 							<button on:click={() => toggleUser(users.maire.id, 'maire')} class="text-xs px-3 py-1.5 rounded-lg border transition-all {users.maire.actif !== false ? 'border-red-200 text-red-600 hover:bg-red-50' : 'border-primary-200 text-primary-600 hover:bg-primary-50'}">
 								{users.maire.actif !== false ? 'Désactiver' : 'Réactiver'}
 							</button>
+							<button on:click={() => confirmDeleteUser = { id: users.maire.id, role: 'maire', nom: users.maire.prenom + ' ' + users.maire.nom }} class="text-xs px-3 py-1.5 rounded-lg border border-red-300 text-red-700 hover:bg-red-50 transition-all">Supprimer</button>
 						</div>
 					{/if}
 				</div>
@@ -1723,6 +1766,57 @@
 		>
 			J'ai noté le mot de passe
 		</button>
+	</div>
+</div>
+{/if}
+
+<!-- Modale confirmation suppression -->
+{#if confirmDeleteUser}
+<div class="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+	<div class="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6">
+		<div class="flex items-center gap-3 mb-4">
+			<div class="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center">
+				<svg class="w-5 h-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+				</svg>
+			</div>
+			<div>
+				<h2 class="font-syne font-semibold text-gray-800">Supprimer le compte</h2>
+				<p class="text-xs text-gray-500">Cette action est irréversible</p>
+			</div>
+		</div>
+		<p class="text-sm text-gray-700 mb-5">Voulez-vous vraiment supprimer le compte de <strong>{confirmDeleteUser.nom}</strong> ? Toutes ses sessions seront immédiatement fermées.</p>
+		<div class="flex gap-3">
+			<button on:click={() => deleteUser(confirmDeleteUser.id, confirmDeleteUser.role, confirmDeleteUser.nom)} class="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold py-2.5 rounded-xl transition-colors text-sm">
+				Supprimer définitivement
+			</button>
+			<button on:click={() => confirmDeleteUser = null} class="flex-1 btn-secondary text-sm">Annuler</button>
+		</div>
+	</div>
+</div>
+{/if}
+
+<!-- Modale résultat reset mot de passe -->
+{#if resetPasswordResult}
+<div class="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+	<div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+		<div class="flex items-center gap-3 mb-4">
+			<div class="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
+				<svg class="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
+				</svg>
+			</div>
+			<div>
+				<h2 class="font-syne font-semibold text-gray-800">Mot de passe réinitialisé</h2>
+				<p class="text-xs text-gray-500">Communiquez ce nouveau mot de passe à {resetPasswordResult.nom}</p>
+			</div>
+		</div>
+		<div class="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4">
+			<p class="text-xs text-amber-700 font-medium mb-2">Nouveau mot de passe temporaire</p>
+			<p class="font-mono text-lg font-bold text-amber-900 tracking-wider">{resetPasswordResult.password}</p>
+			<p class="text-xs text-amber-600 mt-2">L'utilisateur devra le changer depuis ses paramètres après connexion.</p>
+		</div>
+		<button on:click={() => resetPasswordResult = null} class="btn-primary w-full">J'ai noté le mot de passe</button>
 	</div>
 </div>
 {/if}

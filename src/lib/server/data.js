@@ -84,6 +84,13 @@ export async function updateUser(id, data) {
 	return sanitizeUser(user);
 }
 
+export async function deleteUser(id) {
+	const commune_id = getCommuneId();
+	// Supprimer les sessions actives d'abord
+	await prisma.session.deleteMany({ where: { utilisateur_id: id } });
+	return prisma.utilisateur.delete({ where: { id, commune_id } });
+}
+
 // ── Demandes ────────────────────────────────────────────────────────────────
 
 export async function readDemandes(filters = {}) {

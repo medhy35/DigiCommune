@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 import bcrypt from 'bcrypt';
-import { readSettings, writeSettings, readUsers, createUser, updateUser, readDemandes, appendSecurityLog } from '$lib/server/data.js';
+import { readSettings, writeSettings, readUsers, createUser, updateUser, deleteUser, readDemandes, appendSecurityLog } from '$lib/server/data.js';
 import { createNotification } from '$lib/server/notifications.js';
 
 /** GET /api/admin → stats système + config globale + utilisateurs */
@@ -129,6 +129,33 @@ export async function POST({ request }) {
 			await updateUser(userId, data);
 			await appendSecurityLog('user_update', 'superadmin', { userId, role, champs: Object.keys(data) });
 			return json({ ok: true });
+		}
+
+		case 'delete_user': {
+			const { userId, role } = body;
+			const allUsers = await readUsers();
+			let target = null;
+			if (role === 'agent')       target = allUsers.agents.find(a => a.id === userId);
+			else if (role === 'superviseur') target = allUsers.superviseurs.find(s => s.id === userId);
+			else if (role === 'maire')  target = allUsers.maire?.id === userId ? allUsers.maire : null;
+			if (!target) return json({ error: 'Utilisateur introuvable' }, { status: 404 });
+			await deleteUser(userId);
+			await appendSecurityLog('user_delete', 'superadmin', {
+				userId, role,
+				nom: `${target.prenom} ${target.nom}`,
+				email: target.email
+			});
+			return json({ ok: true });
+		}
+
+		case 'reset_password': {
+			const { userId, role } = body;
+			const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#';
+			const newPassword = Array.from({ length: 12 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+			const password_hash = await bcrypt.hash(newPassword, 12);
+			await updateUser(userId, { password_hash });
+			await appendSecurityLog('password_reset', 'superadmin', { userId, role });
+			return json({ ok: true, new_password: newPassword });
 		}
 
 		default:
