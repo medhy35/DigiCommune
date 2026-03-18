@@ -26,7 +26,7 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-digicommune}:${POSTGRES_PASSWORD:-digicommune}@postgres:5432/${POSTGRES_DB:-digicommune}?schema=public
       COMMUNE_ID:   ${COMMUNE_ID:?Variable COMMUNE_ID requise}
       NODE_ENV:     production
-      ORIGIN:       ${ORIGIN:?Variable ORIGIN requise (ex: https://cocody.digicommune.ci)}
+      ORIGIN:       "${ORIGIN:?Variable ORIGIN requise}"
     ports:
       - "3000:3000"
     volumes:
