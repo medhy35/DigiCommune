@@ -875,10 +875,17 @@
 									</div>
 								</div>
 							{:else}
-								<div class="bg-white rounded-xl border border-gray-100 p-4 flex items-center gap-4">
+								<div class="								<div class="<div class="bg-white rounded-xl border border-gray-100 p-4">
+								<div class="	<div class="flex items-center gap-3 mb-3">
+
 									<div class="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center font-syne font-bold text-blue-700 text-sm flex-shrink-0">
 										{agent.avatar}
-									</div>
+									
+								<div class="	</div>
+								<div class="	<div class="flex items-center gap-2 flex-wrap">
+
+								<div class="	</div>
+								<div class="</div>
 									<div class="flex-1">
 										<p class="font-medium text-gray-800 text-sm">{agent.prenom} {agent.nom}</p>
 										<p class="text-xs text-gray-400">{agent.email}</p>
@@ -919,10 +926,17 @@
 									</div>
 								</div>
 							{:else}
-								<div class="bg-white rounded-xl border border-gray-100 p-4 flex items-center gap-4">
+								<div class="								<div class="<div class="bg-white rounded-xl border border-gray-100 p-4">
+								<div class="	<div class="flex items-center gap-3 mb-3">
+
 									<div class="w-10 h-10 bg-violet-100 rounded-xl flex items-center justify-center font-syne font-bold text-violet-700 text-sm flex-shrink-0">
 										{sup.avatar}
-									</div>
+									
+								<div class="	</div>
+								<div class="	<div class="flex items-center gap-2 flex-wrap">
+
+								<div class="	</div>
+								<div class="</div>
 									<div class="flex-1">
 										<p class="font-medium text-gray-800 text-sm">{sup.prenom} {sup.nom}</p>
 										<p class="text-xs text-gray-400">{sup.email}</p>
@@ -962,10 +976,17 @@
 							</div>
 						</div>
 					{:else}
-						<div class="bg-white rounded-xl border border-gray-100 p-4 flex items-center gap-4">
+						<div class="						<div class="<div class="bg-white rounded-xl border border-gray-100 p-4">
+						<div class="	<div class="flex items-center gap-3 mb-3">
+
 							<div class="w-10 h-10 bg-primary-100 rounded-xl flex items-center justify-center font-syne font-bold text-primary-700 text-sm flex-shrink-0">
 								{users.maire.avatar}
-							</div>
+							
+						<div class="	</div>
+						<div class="	<div class="flex items-center gap-2 flex-wrap">
+
+						<div class="	</div>
+						<div class="</div>
 							<div class="flex-1">
 								<p class="font-medium text-gray-800 text-sm">{users.maire.prenom} {users.maire.nom}</p>
 								<p class="text-xs text-gray-400">{users.maire.email}</p>
