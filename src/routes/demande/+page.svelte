@@ -122,14 +122,19 @@
 				if (!form.personne_nom.trim()) errors.personne_nom = 'Nom requis.';
 				if (!form.personne_date_naissance) errors.personne_date_naissance = 'Date requise.';
 			}
-			if (!form.date_evenement) errors.date_evenement = 'La date est requise.';
 		}
+		return Object.keys(errors).length === 0;
+	}
+
+	function validateStep3() {
+		errors = {};
+		if (ACTES_CIVILS.includes(form.type_acte) && !form.date_evenement) errors.date_evenement = 'La date est requise.';
 		if (!uploadedDocs.cni) errors.cni = 'Ce document est obligatoire.';
 		if (isPerCopy && (!form.copies || form.copies < 1)) errors.copies = 'Min. 1 copie.';
 		return Object.keys(errors).length === 0;
 	}
 
-	function validateStep3() {
+	function validateStep5() {
 		errors = {};
 		if (!paymentMode) { errors.payment = 'Choisissez un mode de paiement.'; return false; }
 		if (paymentMode === 'online' && paymentStep !== 'done') { errors.payment = 'Finalisez le paiement en ligne.'; return false; }
@@ -140,6 +145,8 @@
 		if (currentStep === 1 && !validateStep1()) return;
 		if (currentStep === 2 && !validateStep2()) return;
 		if (currentStep === 3 && !validateStep3()) return;
+		// Step 4 = recap, no validation needed
+		if (currentStep === 5 && montantTotal > 0 && !validateStep5()) return;
 		currentStep++;
 		window.scrollTo({ top: 0, behavior: 'smooth' });
 	}
@@ -418,10 +425,10 @@
 	</div>
 
 {:else}
-	<!-- STEPPER 4 étapes -->
+	<!-- STEPPER 5 étapes -->
 	<div class="mb-8">
 		<div class="flex items-center justify-center">
-			{#each [1,2,3,4] as step}
+			{#each [1,2,3,4,5] as step}
 				<div class="flex items-center">
 					<div class="flex items-center gap-1.5">
 						<div class="w-8 h-8 rounded-full flex items-center justify-center font-syne font-bold text-xs transition-all
@@ -433,11 +440,11 @@
 							{/if}
 						</div>
 						<span class="text-xs font-medium hidden sm:block {currentStep === step ? 'text-primary-700' : currentStep > step ? 'text-primary-400' : 'text-gray-400'}">
-							{['Identité','Demande','Paiement','Confirmation'][step-1]}
+							{['Identité','Service','Détails','Récapitulatif','Paiement'][step-1]}
 						</span>
 					</div>
-					{#if step < 4}
-						<div class="w-8 sm:w-10 h-0.5 mx-1.5 {currentStep > step ? 'bg-primary-400' : 'bg-gray-200'}"></div>
+					{#if step < 5}
+						<div class="w-6 sm:w-8 h-0.5 mx-1 {currentStep > step ? 'bg-primary-400' : 'bg-gray-200'}"></div>
 					{/if}
 				</div>
 			{/each}
@@ -507,11 +514,11 @@
 	</div>
 	{/if}
 
-	<!-- ── STEP 2 : DEMANDE + DOCUMENTS ── -->
+	<!-- ── STEP 2 : CHOIX DU SERVICE ── -->
 	{#if currentStep === 2}
 	<div class="card">
 		<h2 class="font-syne font-bold text-xl text-gray-800 mb-1">Votre demande</h2>
-		<p class="text-sm text-gray-500 mb-6">Précisez l'acte souhaité et joignez vos justificatifs.</p>
+		<p class="text-sm text-gray-500 mb-6">Choisissez le service souhaité et précisez pour qui.</p>
 		<div class="space-y-5">
 
 			<div>
@@ -577,8 +584,30 @@
 				</div>
 			{/if}
 
+		</div>
+
+		<div class="mt-6 flex justify-between">
+			<button on:click={prevStep} class="btn-ghost">
+				<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+				Retour
+			</button>
+			<button on:click={nextStep} class="btn-primary">
+				Continuer
+				<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+			</button>
+		</div>
+	</div>
+	{/if}
+
+	<!-- ── STEP 3 : DÉTAILS + DOCUMENTS ── -->
+	{#if currentStep === 3}
+	<div class="card">
+		<h2 class="font-syne font-bold text-xl text-gray-800 mb-1">Détails de la demande</h2>
+		<p class="text-sm text-gray-500 mb-6">Précisez les informations et joignez vos justificatifs.</p>
+		<div class="space-y-5">
+
 			{#if isActeCivil}
-			<!-- Registre + Date de l'acte (actes civils uniquement) -->
+			<!-- Registre + Date de l'acte -->
 			<div class="grid grid-cols-2 gap-4">
 				<div>
 					<label class="label" for="registre">
@@ -590,7 +619,7 @@
 				</div>
 				<div>
 					<label class="label" for="date_evt">
-						{form.type_acte ? (DATE_LABELS[form.type_acte] || 'Date de l\'acte') : 'Date de l\'acte'} <span class="text-red-500">*</span>
+						{form.type_acte ? (DATE_LABELS[form.type_acte] || "Date de l'acte") : "Date de l'acte"} <span class="text-red-500">*</span>
 					</label>
 					<input id="date_evt" type="date" bind:value={form.date_evenement} class="input-field {errors.date_evenement ? 'border-red-400' : ''}"/>
 					{#if errors.date_evenement}<p class="text-xs text-red-500 mt-1">{errors.date_evenement}</p>{/if}
@@ -724,15 +753,14 @@
 				Retour
 			</button>
 			<button on:click={nextStep} class="btn-primary">
-				Continuer — Paiement
+				Continuer — Récapitulatif
 				<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
 			</button>
 		</div>
 	</div>
 	{/if}
-
-	<!-- ── STEP 3 : PAIEMENT ── -->
-	{#if currentStep === 3}
+	<!-- ── STEP 5 : PAIEMENT ── -->
+	{#if currentStep === 5}
 	<div class="card">
 		<h2 class="font-syne font-bold text-xl text-gray-800 mb-1">Paiement des frais de timbre</h2>
 		<p class="text-sm text-gray-500 mb-6">Choisissez comment régler les frais officiels.</p>
@@ -863,19 +891,24 @@
 				<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
 				Retour
 			</button>
-			<button on:click={nextStep} class="btn-primary">
-				Récapitulatif
-				<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+			<button on:click={submitDemande} class="btn-accent" disabled={submitting}>
+				{#if submitting}
+					<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+					Envoi...
+				{:else}
+					<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+					Envoyer ma demande
+				{/if}
 			</button>
 		</div>
 	</div>
 	{/if}
 
-	<!-- ── STEP 4 : CONFIRMATION ── -->
+	<!-- ── STEP 4 : RÉCAPITULATIF ── -->
 	{#if currentStep === 4}
 	<div class="card">
-		<h2 class="font-syne font-bold text-xl text-gray-800 mb-1">Récapitulatif final</h2>
-		<p class="text-sm text-gray-500 mb-6">Vérifiez tout avant d'envoyer.</p>
+		<h2 class="font-syne font-bold text-xl text-gray-800 mb-1">Récapitulatif</h2>
+		<p class="text-sm text-gray-500 mb-6">Vérifiez vos informations avant de procéder au paiement.</p>
 		<div class="space-y-3">
 			<div class="bg-gray-50 rounded-xl p-4">
 				<div class="flex items-center justify-between mb-2.5">
@@ -889,13 +922,23 @@
 			</div>
 			<div class="bg-gray-50 rounded-xl p-4">
 				<div class="flex items-center justify-between mb-2.5">
-					<h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Demande</h3>
+					<h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Service demandé</h3>
 					<button on:click={() => goToStep(2)} class="text-xs text-primary-600 hover:text-primary-800 font-medium flex items-center gap-1 hover:underline">✏️ Modifier</button>
 				</div>
 				<dl class="space-y-1.5 text-sm">
 					<div class="flex justify-between"><dt class="text-gray-500">Service</dt><dd class="font-medium">{TYPE_LABELS[form.type_acte] || '—'}</dd></div>
 					{#if isActeCivil}
 					<div class="flex justify-between"><dt class="text-gray-500">Concernant</dt><dd class="font-medium">{CONCERNANT_LABELS[form.concernant] || '—'}</dd></div>
+					{/if}
+				</dl>
+			</div>
+			<div class="bg-gray-50 rounded-xl p-4">
+				<div class="flex items-center justify-between mb-2.5">
+					<h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Détails</h3>
+					<button on:click={() => goToStep(3)} class="text-xs text-primary-600 hover:text-primary-800 font-medium flex items-center gap-1 hover:underline">✏️ Modifier</button>
+				</div>
+				<dl class="space-y-1.5 text-sm">
+					{#if isActeCivil}
 					<div class="flex justify-between"><dt class="text-gray-500">Date de l'acte</dt><dd class="font-medium">{form.date_evenement}</dd></div>
 					{#if form.numero_registre}<div class="flex justify-between"><dt class="text-gray-500">N° registre</dt><dd class="font-mono text-xs font-medium">{form.numero_registre}</dd></div>{/if}
 					{/if}
@@ -912,19 +955,24 @@
 					</ul>
 				</div>
 			{/if}
-			<div class="bg-gray-50 rounded-xl p-4">
-				<div class="flex items-center justify-between mb-2.5">
-					<h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Paiement</h3>
-					<button on:click={() => goToStep(3)} class="text-xs text-primary-600 hover:text-primary-800 font-medium flex items-center gap-1 hover:underline">✏️ Modifier</button>
+			{#if montantTotal > 0}
+			<div class="bg-amber-50 border border-amber-100 rounded-xl p-4">
+				<div class="flex items-center justify-between">
+					<div>
+						<p class="text-xs font-semibold text-amber-700 uppercase tracking-wide mb-0.5">Frais à régler</p>
+						<p class="font-syne font-bold text-xl text-amber-900">{montantTotal.toLocaleString('fr-FR')} FCFA</p>
+						{#if isPerCopy}<p class="text-xs text-amber-600">{fraisCopie.toLocaleString('fr-FR')} FCFA × {form.copies} copie{form.copies > 1 ? 's' : ''}</p>{/if}
+					</div>
+					<span class="text-3xl">💳</span>
 				</div>
-				<div class="flex justify-between text-sm"><dt class="text-gray-500">Montant</dt><dd class="font-bold">{montantTotal.toLocaleString('fr-FR')} FCFA</dd></div>
-				<div class="flex justify-between text-sm mt-1.5">
-					<dt class="text-gray-500">Mode</dt>
-					<dd class="font-medium {paymentMode === 'online' ? 'text-primary-600' : 'text-gray-700'}">
-						{paymentMode === 'online' ? `✅ Payé · Réf. ${paymentRef}` : '🏛️ À payer en mairie'}
-					</dd>
-				</div>
+				<p class="text-xs text-amber-600 mt-2">Le paiement se fera à l'étape suivante (Mobile Money ou en mairie).</p>
 			</div>
+			{:else}
+			<div class="flex items-center gap-3 bg-primary-50 border border-primary-100 rounded-xl px-4 py-3">
+				<span class="text-2xl">✅</span>
+				<p class="text-sm text-primary-700 font-medium">Démarche gratuite — aucun frais à régler</p>
+			</div>
+			{/if}
 			<div class="flex items-start gap-2.5 bg-primary-50 border border-primary-200 rounded-xl p-3.5 text-sm text-primary-800">
 				<svg class="w-4 h-4 text-primary-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
 				Un agent vous contactera au <strong>{form.telephone}</strong> dans les <strong>24h</strong>.
@@ -935,15 +983,22 @@
 				<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
 				Modifier
 			</button>
-			<button on:click={submitDemande} class="btn-accent" disabled={submitting}>
-				{#if submitting}
-					<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
-					Envoi...
-				{:else}
-					<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
-					Envoyer ma demande
-				{/if}
-			</button>
+			{#if montantTotal > 0}
+				<button on:click={nextStep} class="btn-primary">
+					Confirmer et passer au paiement
+					<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+				</button>
+			{:else}
+				<button on:click={submitDemande} class="btn-accent" disabled={submitting}>
+					{#if submitting}
+						<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+						Envoi...
+					{:else}
+						<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+						Envoyer ma demande
+					{/if}
+				</button>
+			{/if}
 		</div>
 	</div>
 	{/if}
