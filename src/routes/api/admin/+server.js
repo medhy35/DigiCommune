@@ -1,12 +1,12 @@
 import { json } from '@sveltejs/kit';
-import { readSettings, writeSettings, readUsers, writeUsers, readDemandes, appendSecurityLog } from '$lib/server/data.js';
+import { readSettings, writeSettings, readUsers, createUser, updateUser, readDemandes, appendSecurityLog } from '$lib/server/data.js';
 import { createNotification } from '$lib/server/notifications.js';
 
 /** GET /api/admin → stats système + config globale + utilisateurs */
-export function GET() {
-	const settings = readSettings();
-	const users    = readUsers();
-	const demandes = readDemandes();
+export async function GET() {
+	const settings = await readSettings();
+	const users    = await readUsers();
+	const demandes = await readDemandes();
 
 	const stats = {
 		total:        demandes.length,
@@ -28,8 +28,8 @@ export function GET() {
 /** POST /api/admin → actions d'administration */
 export async function POST({ request }) {
 	const body     = await request.json();
-	const settings = readSettings();
-	const users    = readUsers();
+	const settings = await readSettings();
+	const users    = await readUsers();
 
 	switch (body.action) {
 
@@ -37,8 +37,8 @@ export async function POST({ request }) {
 			if (!settings.global) settings.global = { modules: {}, locked_params: [] };
 			const prev = settings.global.modules[body.module];
 			settings.global.modules[body.module] = !prev;
-			writeSettings(settings);
-			appendSecurityLog('module_toggle', 'superadmin', {
+			await writeSettings(settings);
+			await appendSecurityLog('module_toggle', 'superadmin', {
 				module:  body.module,
 				enabled: !prev
 			});
@@ -47,15 +47,15 @@ export async function POST({ request }) {
 
 		case 'save_global': {
 			settings.global = { ...settings.global, ...body.data };
-			writeSettings(settings);
-			appendSecurityLog('settings_change', 'superadmin', { champs: Object.keys(body.data) });
+			await writeSettings(settings);
+			await appendSecurityLog('settings_change', 'superadmin', { champs: Object.keys(body.data) });
 			return json({ ok: true });
 		}
 
 		case 'save_role_settings': {
 			settings[body.role] = { ...settings[body.role], ...body.data };
-			writeSettings(settings);
-			appendSecurityLog('role_settings_change', 'superadmin', {
+			await writeSettings(settings);
+			await appendSecurityLog('role_settings_change', 'superadmin', {
 				role:   body.role,
 				champs: Object.keys(body.data)
 			});
@@ -64,40 +64,43 @@ export async function POST({ request }) {
 
 		case 'save_rdv_settings': {
 			settings.rdv = { ...settings.rdv, ...body.data };
-			writeSettings(settings);
-			appendSecurityLog('rdv_settings_change', 'superadmin', { champs: Object.keys(body.data) });
+			await writeSettings(settings);
+			await appendSecurityLog('rdv_settings_change', 'superadmin', { champs: Object.keys(body.data) });
 			return json({ ok: true });
 		}
 
 		case 'lock_param': {
 			if (!settings.global.locked_params.includes(body.param)) {
 				settings.global.locked_params.push(body.param);
-				writeSettings(settings);
-				appendSecurityLog('param_lock', 'superadmin', { param: body.param });
+				await writeSettings(settings);
+				await appendSecurityLog('param_lock', 'superadmin', { param: body.param });
 			}
 			return json({ ok: true });
 		}
 
 		case 'unlock_param': {
 			settings.global.locked_params = settings.global.locked_params.filter(p => p !== body.param);
-			writeSettings(settings);
-			appendSecurityLog('param_unlock', 'superadmin', { param: body.param });
+			await writeSettings(settings);
+			await appendSecurityLog('param_unlock', 'superadmin', { param: body.param });
 			return json({ ok: true });
 		}
 
 		case 'add_user': {
 			const { role, user } = body;
-			const newUser = { ...user, id: `${role}_${Date.now()}`, role, actif: true, avatar: (user.prenom[0] + user.nom[0]).toUpperCase() };
-			if (role === 'agent')            users.agents.push(newUser);
-			else if (role === 'superviseur') users.superviseurs.push(newUser);
-			else if (role === 'maire')       users.maire = newUser;
-			writeUsers(users);
-			appendSecurityLog('user_add', 'superadmin', {
+			const newUser = await createUser({
+				...user,
+				id:            `${role}_${Date.now()}`,
+				role,
+				actif:         true,
+				avatar:        (user.prenom[0] + user.nom[0]).toUpperCase(),
+				password_hash: ''
+			});
+			await appendSecurityLog('user_add', 'superadmin', {
 				role,
 				nom:   `${user.prenom} ${user.nom}`,
 				email: user.email
 			});
-			createNotification(role, 'bienvenue', `Bienvenue ${user.prenom} ${user.nom} ! Votre compte ${role} a été créé.`, null);
+			await createNotification(role, 'bienvenue', `Bienvenue ${user.prenom} ${user.nom} ! Votre compte ${role} a été créé.`, null);
 			return json({ ok: true, user: newUser });
 		}
 
@@ -106,34 +109,22 @@ export async function POST({ request }) {
 			let toggled = null;
 			if (role === 'agent') {
 				toggled = users.agents.find(a => a.id === userId);
-				if (toggled) toggled.actif = !toggled.actif;
 			} else if (role === 'superviseur') {
 				toggled = users.superviseurs.find(s => s.id === userId);
-				if (toggled) toggled.actif = !toggled.actif;
 			} else if (role === 'maire' && users.maire?.id === userId) {
-				users.maire.actif = !users.maire.actif;
 				toggled = users.maire;
 			}
 			if (toggled) {
-				writeUsers(users);
-				appendSecurityLog('user_toggle', 'superadmin', { userId, role, nom: `${toggled.prenom} ${toggled.nom}`, actif: toggled.actif });
+				await updateUser(userId, { actif: !toggled.actif });
+				await appendSecurityLog('user_toggle', 'superadmin', { userId, role, nom: `${toggled.prenom} ${toggled.nom}`, actif: !toggled.actif });
 			}
 			return json({ ok: true });
 		}
 
 		case 'update_user': {
 			const { userId, role, data } = body;
-			if (role === 'agent') {
-				const i = users.agents.findIndex(a => a.id === userId);
-				if (i !== -1) { users.agents[i] = { ...users.agents[i], ...data }; }
-			} else if (role === 'superviseur') {
-				const i = users.superviseurs.findIndex(s => s.id === userId);
-				if (i !== -1) { users.superviseurs[i] = { ...users.superviseurs[i], ...data }; }
-			} else if (role === 'maire') {
-				users.maire = { ...users.maire, ...data };
-			}
-			writeUsers(users);
-			appendSecurityLog('user_update', 'superadmin', { userId, role, champs: Object.keys(data) });
+			await updateUser(userId, data);
+			await appendSecurityLog('user_update', 'superadmin', { userId, role, champs: Object.keys(data) });
 			return json({ ok: true });
 		}
 

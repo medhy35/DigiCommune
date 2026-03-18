@@ -1,0 +1,237 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ── Commune ───────────────────────────────────────────────────────────────────
+model Commune {
+  id                 String   @id // slug ex: "cocody"
+  nom                String
+  nom_app            String   @default("DigiCommune")
+  region             String   @default("")
+  adresse            String   @default("")
+  telephone          String   @default("")
+  email              String   @default("")
+  site               String   @default("")
+  maire              String   @default("")
+  slogan             String   @default("")
+  horaires_ouverture String   @default("")
+  couleur_primaire   String   @default("#009A44")
+  logo               String?
+  created_at         DateTime @default(now())
+  updated_at         DateTime @updatedAt
+
+  utilisateurs  Utilisateur[]
+  demandes      Demande[]
+  notifications Notification[]
+  rendez_vous   RendezVous[]
+  security_logs SecurityLog[]
+  templates     Template[]
+  settings      Settings?
+  sessions      Session[]
+
+  @@map("communes")
+}
+
+// ── Utilisateurs ─────────────────────────────────────────────────────────────
+enum Role {
+  agent
+  superviseur
+  maire
+  superadmin
+}
+
+model Utilisateur {
+  id            String   @id @default(cuid())
+  commune_id    String
+  nom           String
+  prenom        String
+  role          Role
+  email         String
+  avatar        String   @default("")
+  actif         Boolean  @default(true)
+  password_hash String
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  commune  Commune   @relation(fields: [commune_id], references: [id], onDelete: Cascade)
+  sessions Session[]
+
+  @@unique([commune_id, email])
+  @@map("utilisateurs")
+}
+
+// ── Sessions ─────────────────────────────────────────────────────────────────
+model Session {
+  id             String      @id @default(cuid())
+  utilisateur_id String
+  commune_id     String
+  expires_at     DateTime
+  created_at     DateTime    @default(now())
+
+  utilisateur Utilisateur @relation(fields: [utilisateur_id], references: [id], onDelete: Cascade)
+  commune     Commune     @relation(fields: [commune_id], references: [id], onDelete: Cascade)
+
+  @@index([utilisateur_id])
+  @@index([commune_id])
+  @@map("sessions")
+}
+
+// ── Demandes ─────────────────────────────────────────────────────────────────
+enum StatutDemande {
+  recue
+  en_cours
+  complements_requis
+  complements_fournis
+  traitee
+  disponible
+  rejetee
+}
+
+enum TypeActe {
+  naissance
+  mariage
+  deces
+  attestation_concubinage
+  attestation_domicile
+  certification_documents
+  legalisation
+  inscription_livret
+  duplicata_livret
+  certificat_vie_entretien
+  certificat_vie_adulte
+  fiche_familiale
+  fiche_individuelle
+}
+
+enum ModeReception {
+  retrait
+  whatsapp
+}
+
+model Demande {
+  id                 String        @id
+  commune_id         String
+  created_at         DateTime      @default(now())
+  updated_at         DateTime      @updatedAt
+  statut             StatutDemande @default(recue)
+  type_acte          TypeActe
+  concernant         String
+  demandeur          Json
+  personne_concernee Json?
+  copies             Int           @default(1)
+  mode_reception     ModeReception @default(retrait)
+  documents          Json          @default("[]")
+  paiement           Json
+  agent_id           String?
+  acte               Json?
+  verification_codes Json          @default("{}")
+  complement_demande Json?
+  complement_fourni  Json?
+  escalade           Json?
+  historique         Json          @default("[]")
+
+  commune Commune @relation(fields: [commune_id], references: [id], onDelete: Cascade)
+
+  @@index([commune_id])
+  @@index([commune_id, statut])
+  @@index([commune_id, agent_id])
+  @@map("demandes")
+}
+
+// ── Notifications ─────────────────────────────────────────────────────────────
+model Notification {
+  id         String   @id @default(cuid())
+  commune_id String
+  role       String
+  type       String
+  message    String
+  demande_id String?
+  read       Boolean  @default(false)
+  created_at DateTime @default(now())
+
+  commune Commune @relation(fields: [commune_id], references: [id], onDelete: Cascade)
+
+  @@index([commune_id, role])
+  @@map("notifications")
+}
+
+// ── Rendez-vous ───────────────────────────────────────────────────────────────
+enum StatutRdv {
+  en_attente
+  confirme
+  effectue
+  annule
+}
+
+model RendezVous {
+  id         String    @id @default(cuid())
+  commune_id String
+  demande_id String
+  demandeur  Json
+  date_rdv   String
+  heure_rdv  String
+  lieu       String    @default("Mairie")
+  statut     StatutRdv @default(en_attente)
+  note_agent String?
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+
+  commune Commune @relation(fields: [commune_id], references: [id], onDelete: Cascade)
+
+  @@index([commune_id])
+  @@index([commune_id, demande_id])
+  @@index([commune_id, date_rdv])
+  @@map("rendez_vous")
+}
+
+// ── Settings ──────────────────────────────────────────────────────────────────
+model Settings {
+  id         String   @id @default(cuid())
+  commune_id String   @unique
+  data       Json
+  updated_at DateTime @updatedAt
+
+  commune Commune @relation(fields: [commune_id], references: [id], onDelete: Cascade)
+
+  @@map("settings")
+}
+
+// ── Journal de sécurité ──────────────────────────────────────────────────────
+model SecurityLog {
+  id         String   @id @default(cuid())
+  commune_id String
+  date       DateTime @default(now())
+  type       String
+  acteur     String
+  details    Json     @default("{}")
+
+  commune Commune @relation(fields: [commune_id], references: [id], onDelete: Cascade)
+
+  @@index([commune_id])
+  @@index([commune_id, type])
+  @@index([commune_id, date])
+  @@map("security_logs")
+}
+
+// ── Templates de documents ────────────────────────────────────────────────────
+model Template {
+  id          String   @id @default(cuid())
+  commune_id  String
+  type        String
+  nom_fichier String
+  taille      Int
+  uploaded_at DateTime @default(now())
+  uploaded_by String
+  has_data    Boolean  @default(true)
+  file_path   String
+  ext         String
+
+  commune Commune @relation(fields: [commune_id], references: [id], onDelete: Cascade)
+
+  @@unique([commune_id, type])
+  @@map("templates")
+}

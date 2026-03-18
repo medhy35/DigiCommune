@@ -1,5 +1,5 @@
 import { json } from '@sveltejs/kit';
-import { readRendezVous, writeRendezVous, readSettings, appendSecurityLog } from '$lib/server/data.js';
+import { readRendezVous, createRendezVous, readSettings, appendSecurityLog } from '$lib/server/data.js';
 
 /** Génère les créneaux disponibles pour une date donnée (YYYY-MM-DD). */
 function getCreneaux(date, rdvCfg, allRdv) {
@@ -32,25 +32,26 @@ function isJourOuvrable(dateStr, jours) {
  *  ?statut=confirme     → filtre par statut
  *  (sans params)        → tous les RDV (usage agent/admin)
  */
-export function GET({ url }) {
-	const rdvList       = readRendezVous();
+export async function GET({ url }) {
 	const demandeId     = url.searchParams.get('demande_id');
 	const dateCreneaux  = url.searchParams.get('creneaux');
 	const statut        = url.searchParams.get('statut');
 
 	if (dateCreneaux) {
-		const settings = readSettings();
+		const settings = await readSettings();
 		const rdvCfg   = settings.rdv || { heure_debut:'08:00', heure_fin:'16:00', duree_creneau:30, max_rdv_par_creneau:3, jours_ouvrables:[1,2,3,4,5] };
 		if (!isJourOuvrable(dateCreneaux, rdvCfg.jours_ouvrables)) {
 			return json([]);
 		}
-		return json(getCreneaux(dateCreneaux, rdvCfg, rdvList));
+		const allRdv = await readRendezVous({ date_rdv: dateCreneaux });
+		return json(getCreneaux(dateCreneaux, rdvCfg, allRdv));
 	}
 
-	let result = [...rdvList];
-	if (demandeId) result = result.filter(r => r.demande_id === demandeId);
-	if (statut)    result = result.filter(r => r.statut === statut);
+	const filters = {};
+	if (demandeId) filters.demande_id = demandeId;
+	if (statut)    filters.statut     = statut;
 
+	const result = await readRendezVous(filters);
 	result.sort((a, b) => {
 		const da = new Date(a.date_rdv + 'T' + a.heure_rdv);
 		const db = new Date(b.date_rdv + 'T' + b.heure_rdv);
@@ -68,23 +69,24 @@ export async function POST({ request }) {
 		return json({ error: 'Champs obligatoires manquants.' }, { status: 400 });
 	}
 
-	const settings = readSettings();
+	const settings = await readSettings();
 
 	if (!settings.global?.modules?.rdv) {
 		return json({ error: 'Le module de prise de rendez-vous est désactivé.' }, { status: 403 });
 	}
 
-	const rdvList = readRendezVous();
-	const rdvCfg  = settings.rdv || { max_rdv_par_creneau: 3, jours_ouvrables: [1,2,3,4,5] };
+	const rdvCfg = settings.rdv || { max_rdv_par_creneau: 3, jours_ouvrables: [1,2,3,4,5] };
 
 	// Vérifier qu'il n'existe pas déjà un RDV actif pour ce dossier
-	const existant = rdvList.find(r => r.demande_id === demande_id && r.statut !== 'annule');
+	const existants = await readRendezVous({ demande_id });
+	const existant  = existants.find(r => r.statut !== 'annule');
 	if (existant) {
 		return json({ error: 'Un rendez-vous existe déjà pour ce dossier.', rdv: existant }, { status: 409 });
 	}
 
 	// Vérifier que le créneau est disponible
-	const pris = rdvList.filter(r => r.date_rdv === date_rdv && r.heure_rdv === heure_rdv && r.statut !== 'annule').length;
+	const creneauRdv = await readRendezVous({ date_rdv, heure_rdv });
+	const pris = creneauRdv.filter(r => r.statut !== 'annule').length;
 	if (pris >= (rdvCfg.max_rdv_par_creneau || 3)) {
 		return json({ error: 'Ce créneau est complet. Veuillez en choisir un autre.' }, { status: 409 });
 	}
@@ -94,10 +96,7 @@ export async function POST({ request }) {
 		return json({ error: 'La mairie est fermée ce jour-là.' }, { status: 400 });
 	}
 
-	const id  = 'RDV-' + Math.random().toString(36).slice(2, 8).toUpperCase();
-	const rdv = {
-		id,
-		created_at:  new Date().toISOString(),
+	const rdv = await createRendezVous({
 		demande_id,
 		demandeur:   demandeur || {},
 		date_rdv,
@@ -105,10 +104,8 @@ export async function POST({ request }) {
 		lieu:        rdvCfg.lieu || 'Mairie',
 		statut:      'en_attente',
 		note_agent:  ''
-	};
+	});
 
-	rdvList.push(rdv);
-	writeRendezVous(rdvList);
-	appendSecurityLog('rdv_pris', 'citoyen', { rdv_id: id, demande_id, date_rdv, heure_rdv });
+	await appendSecurityLog('rdv_pris', 'citoyen', { rdv_id: rdv.id, demande_id, date_rdv, heure_rdv });
 	return json(rdv, { status: 201 });
 }

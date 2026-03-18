@@ -1,102 +1,101 @@
 import { json } from '@sveltejs/kit';
-import { readDemandes, writeDemandes, readSettings } from '$lib/server/data.js';
-import { createNotification } from '$lib/server/notifications.js';
-import { TYPE_ACTE_LABELS } from '$lib/utils/helpers.js';
+import {
+	readDemandes, createDemande, readSettings,
+	createNotification, countDemandesParAgent
+} from '$lib/server/data.js';
 import { registerVerifCode } from '$lib/server/verification.js';
+import { TYPE_ACTE_LABELS } from '$lib/utils/helpers.js';
 
-export function GET({ url }) {
-	const demandes     = readDemandes();
-	const statut       = url.searchParams.get('statut');
-	const type_acte    = url.searchParams.get('type_acte');
-	const agent_id     = url.searchParams.get('agent_id');
-	const escalade_level = url.searchParams.get('escalade_level');
-
-	let result = demandes;
-	if (statut)        result = result.filter(d => d.statut === statut);
-	if (type_acte)     result = result.filter(d => d.type_acte === type_acte);
-	if (agent_id)      result = result.filter(d => d.agent_id === agent_id);
-	if (escalade_level) result = result.filter(d => d.escalade?.level === escalade_level && !d.escalade?.resolu);
-
-	return json(result);
+export async function GET({ url }) {
+	const filters = {
+		statut:         url.searchParams.get('statut')         || undefined,
+		type_acte:      url.searchParams.get('type_acte')      || undefined,
+		agent_id:       url.searchParams.get('agent_id')       || undefined,
+		escalade_level: url.searchParams.get('escalade_level') || undefined
+	};
+	const demandes = await readDemandes(filters);
+	return json(demandes);
 }
 
 export async function POST({ request }) {
 	const body = await request.json();
 
-	// Vérifier que le module est actif
-	const settings = readSettings();
+	const settings = await readSettings();
 	const modules  = settings.global?.modules || {};
 	if (modules[body.type_acte] === false) {
 		return json({ error: 'Ce service est temporairement indisponible.' }, { status: 403 });
 	}
 
-	const demandes = readDemandes();
-	const id  = generateId(demandes);
+	const id  = generateId();
 	const now = new Date().toISOString();
 
-	// Code de vérification pour l'attestation de dépôt
-	const codeAttestation = registerVerifCode('attestation', id);
-
-	// Code reçu si paiement déjà effectué en ligne
-	const codePaiement = body.paiement?.statut === 'paye'
-		? registerVerifCode('recu', id)
+	const codeAttestation = await registerVerifCode('attestation', id);
+	const codePaiement    = body.paiement?.statut === 'paye'
+		? await registerVerifCode('recu', id)
 		: null;
 
-	const newDemande = {
+	const agentId = await assignAgent();
+
+	const data = {
 		id,
-		created_at: now,
-		updated_at: now,
-		statut: 'recue',
-		type_acte:         body.type_acte,
-		concernant:        body.concernant,
-		demandeur:         body.demandeur,
-		personne_concernee: body.personne_concernee,
-		copies:            body.copies,
-		mode_reception:    body.mode_reception,
-		documents: (body.documents || []).map(doc => renameDoc(doc, id, body.demandeur)),
-		paiement: body.paiement || { mode: 'mairie', statut: 'en_attente', montant: body.copies * (settings.global?.frais_copie ?? 500) },
-		agent_id: assignAgent(demandes),
-		escalade: null,
+		statut:             'recue',
+		type_acte:          body.type_acte,
+		concernant:         body.concernant,
+		demandeur:          body.demandeur,
+		personne_concernee: body.personne_concernee ?? null,
+		copies:             body.copies ?? 1,
+		mode_reception:     body.mode_reception ?? 'retrait',
+		documents:          (body.documents || []).map(doc => renameDoc(doc, id, body.demandeur)),
+		paiement:           body.paiement || {
+			mode:    'mairie',
+			statut:  'en_attente',
+			montant: (body.copies ?? 1) * (settings.global?.frais_copie ?? 500)
+		},
+		agent_id:           agentId,
+		escalade:           null,
 		verification_codes: {
 			attestation: codeAttestation,
 			...(codePaiement ? { recu: codePaiement } : {})
 		},
 		historique: [{
 			statut: 'recue',
-			date: now,
-			note: body.paiement?.statut === 'paye'
+			date:   now,
+			note:   body.paiement?.statut === 'paye'
 				? `Demande soumise en ligne · Paiement confirmé (${body.paiement.reference})`
 				: 'Demande soumise en ligne · Paiement au retrait',
 			par: 'citoyen'
 		}]
 	};
 
-	demandes.push(newDemande);
-	writeDemandes(demandes);
+	const demande = await createDemande(data);
 
-	createNotification(
+	await createNotification(
 		'agent',
 		'nouvelle_demande',
 		`Nouvelle demande — ${body.demandeur.prenom} ${body.demandeur.nom} · ${TYPE_ACTE_LABELS[body.type_acte] || body.type_acte}`,
 		id
 	);
 
-	return json(newDemande, { status: 201 });
+	return json(demande, { status: 201 });
 }
 
-/**
- * Génère un ID unique sur 10 chiffres.
- * Format : CI-XXXXXXXXXX
- * 6 chiffres temporels (timestamp/10000) + 4 chiffres aléatoires.
- */
-function generateId(demandes) {
+function generateId() {
 	const ts   = Math.floor(Date.now() / 1000);
 	const rand = Math.floor(Math.random() * 9000) + 1000;
-	const id   = `CI-${Math.floor(ts / 10000)}${rand}`;
-	return demandes.some(d => d.id === id) ? generateId(demandes) : id;
+	return `CI-${Math.floor(ts / 10000)}${rand}`;
 }
 
-const DOC_TYPE_KEYS = { cni: 'CNI', extrait: 'EXTRAIT-ACTE', passeport: 'PASSEPORT', justificatif: 'JUSTIFICATIF', autre: 'DOCUMENT' };
+async function assignAgent() {
+	// TODO: charger les agents actifs depuis la DB plutôt que coder en dur
+	const agentIds = ['agent_001', 'agent_002'];
+	const counts   = await countDemandesParAgent(agentIds);
+	return agentIds.reduce((best, id) => counts[id] <= counts[best] ? id : best, agentIds[0]);
+}
+
+const DOC_TYPE_KEYS = {
+	cni: 'CNI', extrait: 'EXTRAIT-ACTE', passeport: 'PASSEPORT',
+	justificatif: 'JUSTIFICATIF', autre: 'DOCUMENT'
+};
 
 function renameDoc(doc, dossierId, demandeur) {
 	const parts     = (doc.nom || 'fichier').split('.');
@@ -105,10 +104,4 @@ function renameDoc(doc, dossierId, demandeur) {
 	const nom       = demandeur.nom.toUpperCase().replace(/[\s'']/g, '-');
 	const prenom    = demandeur.prenom.replace(/[\s'']/g, '-');
 	return { ...doc, nom: `${dossierId}_${typeLabel}_${nom}-${prenom}.${ext}` };
-}
-
-function assignAgent(demandes) {
-	const agents = ['agent_001', 'agent_002'];
-	const counts = agents.map(a => demandes.filter(d => d.agent_id === a).length);
-	return agents[counts[0] <= counts[1] ? 0 : 1];
 }

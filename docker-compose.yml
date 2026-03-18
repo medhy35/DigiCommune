@@ -1,0 +1,37 @@
+services:
+  # ── Base de données PostgreSQL ────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER:     ${POSTGRES_USER:-digicommune}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-digicommune}
+      POSTGRES_DB:       ${POSTGRES_DB:-digicommune}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-digicommune}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ── Application SvelteKit ─────────────────────────────────────────────────
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-digicommune}:${POSTGRES_PASSWORD:-digicommune}@postgres:5432/${POSTGRES_DB:-digicommune}?schema=public
+      COMMUNE_ID:   ${COMMUNE_ID:?Variable COMMUNE_ID requise}
+      NODE_ENV:     production
+      ORIGIN:       ${ORIGIN:?Variable ORIGIN requise (ex: https://cocody.digicommune.ci)}
+    ports:
+      - "3000:3000"
+    volumes:
+      - app_data:/app/data/templates
+
+volumes:
+  postgres_data:
+  app_data:

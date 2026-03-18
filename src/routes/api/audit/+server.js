@@ -2,12 +2,12 @@ import { json } from '@sveltejs/kit';
 import { readDemandes } from '$lib/server/data.js';
 
 /** GET /api/audit?limit=200&type=&role= */
-export function GET({ url }) {
+export async function GET({ url }) {
 	const limit      = parseInt(url.searchParams.get('limit') || '200');
 	const typeFilter = url.searchParams.get('type') || '';
 	const roleFilter = url.searchParams.get('role') || '';
 
-	const demandes = readDemandes();
+	const demandes = await readDemandes();
 	const entries  = [];
 
 	for (const d of demandes) {

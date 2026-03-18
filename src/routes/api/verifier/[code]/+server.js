@@ -1,6 +1,5 @@
 import { json, error } from '@sveltejs/kit';
-import { lookupVerifCode } from '$lib/server/verification.js';
-import { readDemandes } from '$lib/server/data.js';
+import { lookupVerifCode, readDemande } from '$lib/server/data.js';
 import { TYPE_ACTE_LABELS } from '$lib/utils/helpers.js';
 
 const TYPE_DOC_LABELS = {
@@ -9,11 +8,11 @@ const TYPE_DOC_LABELS = {
 	acte:        "Acte officiel d'état civil"
 };
 
-export function GET({ params }) {
-	const entry = lookupVerifCode(params.code);
+export async function GET({ params }) {
+	const entry = await lookupVerifCode(params.code);
 	if (!entry) throw error(404, 'Code invalide ou document introuvable');
 
-	const demande = readDemandes().find(d => d.id === entry.demande_id);
+	const demande = await readDemande(entry.demande_id);
 	if (!demande) throw error(404, 'Dossier introuvable');
 
 	const base = {

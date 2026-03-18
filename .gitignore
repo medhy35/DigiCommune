@@ -11,3 +11,5 @@ data/notifications.json
 data/audit.json
 data/security_log.json
 data/rendez_vous.json
+
+/src/generated/prisma
