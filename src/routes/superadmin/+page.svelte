@@ -874,33 +874,30 @@
 										<button on:click={() => editingUser = null} class="btn-secondary text-xs px-3 py-1.5">Annuler</button>
 									</div>
 								</div>
-							{:else}
-								<div class="								<div class="<div class="bg-white rounded-xl border border-gray-100 p-4">
-								<div class="	<div class="flex items-center gap-3 mb-3">
-
+						{:else}
+							<div class="bg-white rounded-xl border border-gray-100 p-4">
+								<div class="flex items-center gap-3 mb-3">
 									<div class="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center font-syne font-bold text-blue-700 text-sm flex-shrink-0">
 										{agent.avatar}
-									
-								<div class="	</div>
-								<div class="	<div class="flex items-center gap-2 flex-wrap">
-
-								<div class="	</div>
-								<div class="</div>
-									<div class="flex-1">
-										<p class="font-medium text-gray-800 text-sm">{agent.prenom} {agent.nom}</p>
-										<p class="text-xs text-gray-400">{agent.email}</p>
 									</div>
-									<span class="text-xs px-2 py-0.5 rounded-full font-medium {agent.actif !== false ? 'bg-primary-100 text-primary-700' : 'bg-gray-100 text-gray-500'}">
+									<div class="flex-1 min-w-0">
+										<p class="font-medium text-gray-800 text-sm">{agent.prenom} {agent.nom}</p>
+										<p class="text-xs text-gray-400 truncate">{agent.email}</p>
+									</div>
+									<span class="text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0 {agent.actif !== false ? 'bg-primary-100 text-primary-700' : 'bg-gray-100 text-gray-500'}">
 										{agent.actif !== false ? 'Actif' : 'Inactif'}
 									</span>
+								</div>
+								<div class="flex items-center gap-2 flex-wrap">
 									<button on:click={() => startEdit({ ...agent, role: 'agent' })} class="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-all">Modifier</button>
 									<button on:click={() => resetPassword(agent.id, 'agent', agent.prenom + ' ' + agent.nom)} class="text-xs px-3 py-1.5 rounded-lg border border-blue-200 text-blue-600 hover:bg-blue-50 transition-all">Reset MDP</button>
-									<button on:click={() => toggleUser(agent.id, 'agent')} class="text-xs px-3 py-1.5 rounded-lg border transition-all {agent.actif !== false ? 'border-red-200 text-red-600 hover:bg-red-50' : 'border-primary-200 text-primary-600 hover:bg-primary-50'}">
+									<button on:click={() => toggleUser(agent.id, 'agent')} class="text-xs px-3 py-1.5 rounded-lg border transition-all {agent.actif !== false ? 'border-orange-200 text-orange-600 hover:bg-orange-50' : 'border-primary-200 text-primary-600 hover:bg-primary-50'}">
 										{agent.actif !== false ? 'Désactiver' : 'Réactiver'}
 									</button>
 									<button on:click={() => confirmDeleteUser = { id: agent.id, role: 'agent', nom: agent.prenom + ' ' + agent.nom }} class="text-xs px-3 py-1.5 rounded-lg border border-red-300 text-red-700 hover:bg-red-50 transition-all">Supprimer</button>
 								</div>
-							{/if}
+							</div>
+						{/if}
 						{/each}
 					</div>
 				</div>
@@ -926,33 +923,29 @@
 									</div>
 								</div>
 							{:else}
-								<div class="								<div class="<div class="bg-white rounded-xl border border-gray-100 p-4">
-								<div class="	<div class="flex items-center gap-3 mb-3">
-
+							<div class="bg-white rounded-xl border border-gray-100 p-4">
+								<div class="flex items-center gap-3 mb-3">
 									<div class="w-10 h-10 bg-violet-100 rounded-xl flex items-center justify-center font-syne font-bold text-violet-700 text-sm flex-shrink-0">
 										{sup.avatar}
-									
-								<div class="	</div>
-								<div class="	<div class="flex items-center gap-2 flex-wrap">
-
-								<div class="	</div>
-								<div class="</div>
-									<div class="flex-1">
-										<p class="font-medium text-gray-800 text-sm">{sup.prenom} {sup.nom}</p>
-										<p class="text-xs text-gray-400">{sup.email}</p>
 									</div>
-									<span class="text-xs px-2 py-0.5 rounded-full font-medium {sup.actif !== false ? 'bg-primary-100 text-primary-700' : 'bg-gray-100 text-gray-500'}">
+									<div class="flex-1 min-w-0">
+										<p class="font-medium text-gray-800 text-sm">{sup.prenom} {sup.nom}</p>
+										<p class="text-xs text-gray-400 truncate">{sup.email}</p>
+									</div>
+									<span class="text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0 {sup.actif !== false ? 'bg-primary-100 text-primary-700' : 'bg-gray-100 text-gray-500'}">
 										{sup.actif !== false ? 'Actif' : 'Inactif'}
 									</span>
+								</div>
+								<div class="flex items-center gap-2 flex-wrap">
 									<button on:click={() => startEdit({ ...sup, role: 'superviseur' })} class="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-all">Modifier</button>
 									<button on:click={() => resetPassword(sup.id, 'superviseur', sup.prenom + ' ' + sup.nom)} class="text-xs px-3 py-1.5 rounded-lg border border-blue-200 text-blue-600 hover:bg-blue-50 transition-all">Reset MDP</button>
-									<button on:click={() => toggleUser(sup.id, 'superviseur')} class="text-xs px-3 py-1.5 rounded-lg border transition-all {sup.actif !== false ? 'border-red-200 text-red-600 hover:bg-red-50' : 'border-primary-200 text-primary-600 hover:bg-primary-50'}">
+									<button on:click={() => toggleUser(sup.id, 'superviseur')} class="text-xs px-3 py-1.5 rounded-lg border transition-all {sup.actif !== false ? 'border-orange-200 text-orange-600 hover:bg-orange-50' : 'border-primary-200 text-primary-600 hover:bg-primary-50'}">
 										{sup.actif !== false ? 'Désactiver' : 'Réactiver'}
 									</button>
 									<button on:click={() => confirmDeleteUser = { id: sup.id, role: 'superviseur', nom: sup.prenom + ' ' + sup.nom }} class="text-xs px-3 py-1.5 rounded-lg border border-red-300 text-red-700 hover:bg-red-50 transition-all">Supprimer</button>
 								</div>
-							{/if}
-						{/each}
+							</div>
+						{/if}						{/each}
 					</div>
 				</div>
 
@@ -976,30 +969,27 @@
 							</div>
 						</div>
 					{:else}
-						<div class="						<div class="<div class="bg-white rounded-xl border border-gray-100 p-4">
-						<div class="	<div class="flex items-center gap-3 mb-3">
-
-							<div class="w-10 h-10 bg-primary-100 rounded-xl flex items-center justify-center font-syne font-bold text-primary-700 text-sm flex-shrink-0">
-								{users.maire.avatar}
-							
-						<div class="	</div>
-						<div class="	<div class="flex items-center gap-2 flex-wrap">
-
-						<div class="	</div>
-						<div class="</div>
-							<div class="flex-1">
-								<p class="font-medium text-gray-800 text-sm">{users.maire.prenom} {users.maire.nom}</p>
-								<p class="text-xs text-gray-400">{users.maire.email}</p>
+						<div class="bg-white rounded-xl border border-gray-100 p-4">
+							<div class="flex items-center gap-3 mb-3">
+								<div class="w-10 h-10 bg-primary-100 rounded-xl flex items-center justify-center font-syne font-bold text-primary-700 text-sm flex-shrink-0">
+									{users.maire.avatar}
+								</div>
+								<div class="flex-1 min-w-0">
+									<p class="font-medium text-gray-800 text-sm">{users.maire.prenom} {users.maire.nom}</p>
+									<p class="text-xs text-gray-400">{users.maire.email}</p>
+								</div>
+								<span class="text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0 {users.maire.actif !== false ? 'bg-primary-100 text-primary-700' : 'bg-gray-100 text-gray-500'}">
+									{users.maire.actif !== false ? 'Actif' : 'Inactif'}
+								</span>
 							</div>
-							<span class="text-xs px-2 py-0.5 rounded-full font-medium {users.maire.actif !== false ? 'bg-primary-100 text-primary-700' : 'bg-gray-100 text-gray-500'}">
-								{users.maire.actif !== false ? 'Actif' : 'Inactif'}
-							</span>
-							<button on:click={() => startEdit({ ...users.maire, role: 'maire' })} class="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-all">Modifier</button>
-							<button on:click={() => resetPassword(users.maire.id, 'maire', users.maire.prenom + ' ' + users.maire.nom)} class="text-xs px-3 py-1.5 rounded-lg border border-blue-200 text-blue-600 hover:bg-blue-50 transition-all">Reset MDP</button>
-							<button on:click={() => toggleUser(users.maire.id, 'maire')} class="text-xs px-3 py-1.5 rounded-lg border transition-all {users.maire.actif !== false ? 'border-red-200 text-red-600 hover:bg-red-50' : 'border-primary-200 text-primary-600 hover:bg-primary-50'}">
-								{users.maire.actif !== false ? 'Désactiver' : 'Réactiver'}
-							</button>
-							<button on:click={() => confirmDeleteUser = { id: users.maire.id, role: 'maire', nom: users.maire.prenom + ' ' + users.maire.nom }} class="text-xs px-3 py-1.5 rounded-lg border border-red-300 text-red-700 hover:bg-red-50 transition-all">Supprimer</button>
+							<div class="flex items-center gap-2 flex-wrap">
+								<button on:click={() => startEdit({ ...users.maire, role: 'maire' })} class="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-all">Modifier</button>
+								<button on:click={() => resetPassword(users.maire.id, 'maire', users.maire.prenom + ' ' + users.maire.nom)} class="text-xs px-3 py-1.5 rounded-lg border border-blue-200 text-blue-600 hover:bg-blue-50 transition-all">Reset MDP</button>
+								<button on:click={() => toggleUser(users.maire.id, 'maire')} class="text-xs px-3 py-1.5 rounded-lg border transition-all {users.maire.actif !== false ? 'border-red-200 text-red-600 hover:bg-red-50' : 'border-primary-200 text-primary-600 hover:bg-primary-50'}">
+									{users.maire.actif !== false ? 'Désactiver' : 'Réactiver'}
+								</button>
+								<button on:click={() => confirmDeleteUser = { id: users.maire.id, role: 'maire', nom: users.maire.prenom + ' ' + users.maire.nom }} class="text-xs px-3 py-1.5 rounded-lg border border-red-300 text-red-700 hover:bg-red-50 transition-all">Supprimer</button>
+							</div>
 						</div>
 					{/if}
 				</div>
