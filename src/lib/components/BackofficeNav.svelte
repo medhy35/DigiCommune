@@ -2,7 +2,7 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
-	import { authRole, ROLE_LABELS, ROLE_COLORS } from '$lib/stores/auth.js';
+	import { authUser, authRole, ROLE_LABELS, ROLE_COLORS } from '$lib/stores/auth.js';
 	import CommuneLogo from '$lib/components/CommuneLogo.svelte';
 
 	export let commune = null;
@@ -12,8 +12,7 @@
 	let showNotifDropdown = false;
 
 	function logout() {
-		authRole.logout();
-		goto('/agent/login');
+		authUser.logout();
 	}
 
 	$: role = $authRole;

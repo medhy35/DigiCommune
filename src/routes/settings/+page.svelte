@@ -31,7 +31,7 @@
 
 	onMount(async () => {
 		role = $authRole;
-		if (!role) { goto('/agent/login'); return; }
+		if (!role) { goto('/login'); return; }
 
 		const res = await fetch(`/api/settings?role=${role}`);
 		const data = await res.json();

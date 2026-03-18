@@ -1,7 +1,7 @@
 <script>
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { authRole } from '$lib/stores/auth.js';
+	import { authRole, authUser } from '$lib/stores/auth.js';
 	import { TYPE_ACTE_LABELS, TYPE_ACTE_ICONS } from '$lib/utils/helpers.js';
 	import CommuneLogo from '$lib/components/CommuneLogo.svelte';
 
@@ -495,8 +495,7 @@
 	}
 
 	function logout() {
-		authRole.logout();
-		goto('/agent/login');
+		authUser.logout();
 	}
 
 	$: lockedParams = settings.global?.locked_params || [];

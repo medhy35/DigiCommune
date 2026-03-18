@@ -6,7 +6,7 @@
 	import BackofficeNav from '$lib/components/BackofficeNav.svelte';
 
 	onMount(() => {
-		if (!$authRole) goto('/agent/login');
+		if (!$authRole) goto('/login');
 	});
 </script>
 
