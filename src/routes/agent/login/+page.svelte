@@ -1,5 +1,5 @@
 <script>
-	import { goto } from '$app/navigation';
-	import { onMount } from 'svelte';
-	onMount(() => goto('/login', { replaceState: true }));
+	import LoginPage from '$lib/components/LoginPage.svelte';
 </script>
+
+<LoginPage roleLabel="Espace Agent" roleHint="Accès réservé aux agents municipaux autorisés." />

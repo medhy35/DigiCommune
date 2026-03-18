@@ -4,7 +4,7 @@
 	import { authRole } from '$lib/stores/auth.js';
 
 	onMount(() => {
-		if ($authRole !== 'superadmin') goto('/login');
+		if ($authRole !== 'superadmin') goto('/superadmin/login');
 	});
 </script>
 
