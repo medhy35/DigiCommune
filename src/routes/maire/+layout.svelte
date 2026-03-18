@@ -9,7 +9,7 @@
 
 	onMount(async () => {
 		if (!$authRole || $authRole !== 'maire') {
-			goto('/agent/login');
+			goto('/maire/login');
 			return;
 		}
 		const res = await fetch('/api/demandes?escalade_level=maire');

@@ -53,7 +53,7 @@ function createAuthStore() {
 				await fetch('/api/auth/logout', { method: 'POST' });
 			} catch {}
 			set(null);
-			if (browser) goto('/');
+			if (browser) goto('/login');
 		}
 	};
 }

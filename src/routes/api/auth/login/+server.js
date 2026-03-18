@@ -6,7 +6,7 @@ import { createSession, appendSecurityLog } from '$lib/server/data.js';
 const SESSION_COOKIE = 'session_id';
 const SESSION_MAX_AGE = 8 * 3600; // 8 heures en secondes
 
-export async function POST({ request, cookies }) {
+export async function POST({ request, cookies, url }) {
 	const { email, password } = await request.json();
 
 	if (!email || !password) {
@@ -36,11 +36,12 @@ export async function POST({ request, cookies }) {
 
 	const session = await createSession(utilisateur.id, heures);
 
+	const isHttps = url.protocol === 'https:' || request.headers.get('x-forwarded-proto') === 'https';
 	cookies.set(SESSION_COOKIE, session.id, {
 		path:     '/',
 		httpOnly: true,
 		sameSite: 'lax',
-		secure:   process.env.NODE_ENV === 'production',
+		secure:   isHttps,
 		maxAge:   SESSION_MAX_AGE
 	});
 

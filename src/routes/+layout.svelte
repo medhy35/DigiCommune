@@ -4,11 +4,13 @@
 	import { onMount } from 'svelte';
 	import { commune } from '$lib/stores/commune.js';
 	import { globalSettings } from '$lib/stores/settings.js';
+	import { authUser } from '$lib/stores/auth.js';
 
 	onMount(async () => {
 		const [communeRes, settingsRes] = await Promise.all([
 			fetch('/api/commune'),
-			fetch('/api/settings?role=global')
+			fetch('/api/settings?role=global'),
+			authUser.load()
 		]);
 		if (communeRes.ok) {
 			const data = await communeRes.json();

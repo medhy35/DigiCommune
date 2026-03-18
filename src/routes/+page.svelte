@@ -315,7 +315,7 @@
 				<ul class="space-y-1.5 text-sm">
 					<li><a href="/demande" class="hover:text-white transition-colors">Faire une demande</a></li>
 					<li><a href="/suivi" class="hover:text-white transition-colors">Suivre ma demande</a></li>
-					<li><a href="/agent/login" class="hover:text-white transition-colors">Espace agent</a></li>
+					<li><a href="/login" class="hover:text-white transition-colors">Espace agent</a></li>
 				</ul>
 			</div>
 			<div>
