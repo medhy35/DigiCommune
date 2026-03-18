@@ -432,6 +432,9 @@
 		}
 	}
 
+	let createdUserPassword = '';
+	let showPasswordModal = false;
+
 	async function addUser() {
 		addUserError = '';
 		if (!newUser.prenom || !newUser.nom || !newUser.email) {
@@ -444,10 +447,12 @@
 			body: JSON.stringify({ action: 'add_user', role: newUser.role, user: newUser })
 		});
 		if (res.ok) {
+			const data = await res.json();
 			await loadAll();
 			showAddUser = false;
 			newUser = { prenom: '', nom: '', email: '', role: 'agent' };
-			showToast('Utilisateur ajouté');
+			createdUserPassword = data.default_password;
+			showPasswordModal = true;
 		}
 	}
 
@@ -1692,3 +1697,33 @@
 		{/if}
 	</div>
 </div>
+
+<!-- Modal mot de passe temporaire -->
+{#if showPasswordModal}
+<div class="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+	<div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+		<div class="flex items-center gap-3 mb-4">
+			<div class="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center">
+				<svg class="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+				</svg>
+			</div>
+			<div>
+				<h2 class="font-syne font-semibold text-gray-800">Compte créé avec succès</h2>
+				<p class="text-xs text-gray-500">Communiquez ce mot de passe temporaire à l'utilisateur</p>
+			</div>
+		</div>
+		<div class="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4">
+			<p class="text-xs text-amber-700 font-medium mb-2">Mot de passe temporaire</p>
+			<p class="font-mono text-lg font-bold text-amber-900 tracking-wider">{createdUserPassword}</p>
+			<p class="text-xs text-amber-600 mt-2">L'utilisateur devra le changer depuis ses paramètres après connexion.</p>
+		</div>
+		<button
+			on:click={() => showPasswordModal = false}
+			class="btn-primary w-full"
+		>
+			J'ai noté le mot de passe
+		</button>
+	</div>
+</div>
+{/if}

@@ -11,6 +11,14 @@
 	let loading = true;
 	let saving = false;
 
+	// Changement de mot de passe
+	let pwCurrent = '';
+	let pwNew = '';
+	let pwConfirm = '';
+	let pwError = '';
+	let pwSuccess = false;
+	let pwSaving = false;
+
 	// Local copies for binding
 	let sla_heures = 48;
 	let seuil_escalades_alerte = 3;
@@ -39,6 +47,31 @@
 
 		loading = false;
 	});
+
+	async function changePassword() {
+		pwError = '';
+		pwSuccess = false;
+		if (!pwNew || !pwConfirm) { pwError = 'Veuillez remplir tous les champs.'; return; }
+		if (pwNew.length < 8) { pwError = 'Le mot de passe doit contenir au moins 8 caractères.'; return; }
+		if (pwNew !== pwConfirm) { pwError = 'Les mots de passe ne correspondent pas.'; return; }
+		pwSaving = true;
+		const res = await fetch('/api/auth/password', {
+			method:  'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body:    JSON.stringify({ current_password: pwCurrent, new_password: pwNew })
+		});
+		const data = await res.json();
+		if (res.ok) {
+			pwSuccess = true;
+			pwCurrent = '';
+			pwNew = '';
+			pwConfirm = '';
+			toast('Mot de passe modifié avec succès');
+		} else {
+			pwError = data.error || 'Erreur lors du changement de mot de passe.';
+		}
+		pwSaving = false;
+	}
 
 	async function save() {
 		saving = true;
@@ -203,6 +236,61 @@
 			</label>
 		</div>
 		{/if}
+
+		<!-- Changement de mot de passe -->
+		<div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+			<h2 class="font-syne font-semibold text-gray-700 text-sm uppercase tracking-wide mb-4">Mot de passe</h2>
+			<div class="space-y-3">
+				<div>
+					<label class="block text-xs font-medium text-gray-600 mb-1">Mot de passe actuel</label>
+					<input
+						type="password"
+						bind:value={pwCurrent}
+						class="input-field text-sm"
+						placeholder="••••••••"
+					/>
+				</div>
+				<div>
+					<label class="block text-xs font-medium text-gray-600 mb-1">Nouveau mot de passe</label>
+					<input
+						type="password"
+						bind:value={pwNew}
+						class="input-field text-sm"
+						placeholder="8 caractères minimum"
+					/>
+				</div>
+				<div>
+					<label class="block text-xs font-medium text-gray-600 mb-1">Confirmer le nouveau mot de passe</label>
+					<input
+						type="password"
+						bind:value={pwConfirm}
+						class="input-field text-sm"
+						placeholder="••••••••"
+					/>
+				</div>
+				{#if pwError}
+					<p class="text-xs text-red-500">{pwError}</p>
+				{/if}
+				{#if pwSuccess}
+					<p class="text-xs text-green-600">Mot de passe modifié avec succès.</p>
+				{/if}
+				<div class="flex justify-end pt-1">
+					<button
+						on:click={changePassword}
+						class="btn-primary text-sm px-5"
+						disabled={pwSaving}
+					>
+						{#if pwSaving}
+							<svg class="w-4 h-4 animate-spin inline mr-1" fill="none" viewBox="0 0 24 24">
+								<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+								<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+							</svg>
+						{/if}
+						Changer le mot de passe
+					</button>
+				</div>
+			</div>
+		</div>
 
 		<!-- Save button -->
 		<div class="flex justify-end">
