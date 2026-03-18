@@ -1,4 +1,5 @@
 import { json } from '@sveltejs/kit';
+import bcrypt from 'bcrypt';
 import { readSettings, writeSettings, readUsers, createUser, updateUser, readDemandes, appendSecurityLog } from '$lib/server/data.js';
 import { createNotification } from '$lib/server/notifications.js';
 
@@ -87,13 +88,15 @@ export async function POST({ request }) {
 
 		case 'add_user': {
 			const { role, user } = body;
+			const default_password = `Commune${new Date().getFullYear()}!`;
+			const password_hash    = await bcrypt.hash(default_password, 12);
 			const newUser = await createUser({
 				...user,
-				id:            `${role}_${Date.now()}`,
+				id:     `${role}_${Date.now()}`,
 				role,
-				actif:         true,
-				avatar:        (user.prenom[0] + user.nom[0]).toUpperCase(),
-				password_hash: ''
+				actif:  true,
+				avatar: (user.prenom[0] + user.nom[0]).toUpperCase(),
+				password_hash
 			});
 			await appendSecurityLog('user_add', 'superadmin', {
 				role,
@@ -101,7 +104,7 @@ export async function POST({ request }) {
 				email: user.email
 			});
 			await createNotification(role, 'bienvenue', `Bienvenue ${user.prenom} ${user.nom} ! Votre compte ${role} a été créé.`, null);
-			return json({ ok: true, user: newUser });
+			return json({ ok: true, user: newUser, default_password });
 		}
 
 		case 'toggle_user': {
