@@ -185,6 +185,7 @@
 	}
 
 	async function submitDemande() {
+		if (montantTotal > 0 && !validateStep5()) return;
 		submitting = true;
 		try {
 			const personConcernee = form.concernant === 'soi-meme'
@@ -206,7 +207,7 @@
 						uploadedDocs.extrait ? { type: 'extrait', nom: uploadedDocs.extrait.name, taille: uploadedDocs.extrait.size, mimetype: uploadedDocs.extrait.type, data: uploadedDocs.extrait.preview } : null
 					].filter(Boolean),
 					paiement: {
-						mode: paymentMode,
+						mode: paymentMode || 'mairie',
 						statut: paymentMode === 'online' ? 'paye' : 'en_attente',
 						montant: montantTotal,
 						reference: paymentRef || null,
@@ -214,8 +215,19 @@
 					}
 				})
 			});
-			if (res.ok) { newDemande = await res.json(); submitted = true; window.scrollTo({ top: 0, behavior: 'smooth' }); }
-		} finally { submitting = false; }
+			if (res.ok) {
+				newDemande = await res.json();
+				submitted = true;
+				window.scrollTo({ top: 0, behavior: 'smooth' });
+			} else {
+				const err = await res.json().catch(() => ({}));
+				toast(err.error || 'Erreur lors de l\'envoi. Veuillez réessayer.', 'error');
+			}
+		} catch (e) {
+			toast('Erreur de connexion. Vérifiez votre connexion internet.', 'error');
+		} finally {
+			submitting = false;
+		}
 	}
 
 	const TYPE_LABELS = {
