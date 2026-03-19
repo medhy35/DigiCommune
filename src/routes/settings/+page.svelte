@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { authRole, ROLE_LABELS, ROLE_COLORS } from '$lib/stores/auth.js';
+	import { commune } from '$lib/stores/commune.js';
 	import { toast } from '$lib/stores/toast.js';
 
 	let role = null;
@@ -96,7 +97,7 @@
 </script>
 
 <svelte:head>
-	<title>Paramètres – CiviCI</title>
+	<title>Paramètres – {$commune?.nom_app || 'DigiCommune'}</title>
 </svelte:head>
 
 <main class="max-w-2xl mx-auto px-4 sm:px-6 py-8">

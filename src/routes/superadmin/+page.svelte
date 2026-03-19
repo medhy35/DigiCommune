@@ -540,7 +540,7 @@
 </script>
 
 <svelte:head>
-	<title>Super Admin – CiviCI</title>
+	<title>Super Admin – {commune?.nom_app || 'DigiCommune'}</title>
 </svelte:head>
 
 <!-- Toast -->

@@ -1,6 +1,7 @@
 <script>
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
+	import { commune } from '$lib/stores/commune.js';
 
 	let result = null;
 	let loading = true;
@@ -100,7 +101,7 @@
 			</div>
 
 			<p class="text-xs text-center text-gray-400">
-				Ce document est certifié authentique par le système CiviCI de la mairie.
+				Ce document est certifié authentique par {$commune?.nom_app || 'DigiCommune'} – {$commune?.nom || 'la mairie'}.
 			</p>
 
 		{:else}
