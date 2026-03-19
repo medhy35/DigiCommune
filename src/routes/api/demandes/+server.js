@@ -1,7 +1,7 @@
 import { json } from '@sveltejs/kit';
 import {
 	readDemandes, createDemande, readSettings,
-	createNotification, countDemandesParAgent
+	createNotification, countDemandesParAgent, readUsers
 } from '$lib/server/data.js';
 import { lookupVerifCode } from '$lib/server/verification.js';
 import { TYPE_ACTE_LABELS } from '$lib/utils/helpers.js';
@@ -95,8 +95,9 @@ async function generateUniqueCode() {
 }
 
 async function assignAgent() {
-	// TODO: charger les agents actifs depuis la DB plutôt que coder en dur
-	const agentIds = ['agent_001', 'agent_002'];
+	const { agents } = await readUsers();
+	if (!agents.length) return null;
+	const agentIds = agents.map(a => a.id);
 	const counts   = await countDemandesParAgent(agentIds);
 	return agentIds.reduce((best, id) => counts[id] <= counts[best] ? id : best, agentIds[0]);
 }

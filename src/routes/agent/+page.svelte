@@ -3,6 +3,7 @@
 	import { goto } from '$app/navigation';
 	import StatusBadge from '$lib/components/StatusBadge.svelte';
 	import { TYPE_ACTE_LABELS, TYPE_ACTE_ICONS, formatDateTime, timeAgo, isEscaladee, isSLADepassee, RDV_STATUT_LABELS, RDV_STATUT_COLORS } from '$lib/utils/helpers.js';
+	import { authUser } from '$lib/stores/auth.js';
 
 	let demandes = [];
 	let loading = true;
@@ -16,9 +17,10 @@
 	let rdvModuleActif = false;
 	let showRdvPanel = false;
 
-	onMount(async () => {
-		await Promise.all([loadDemandes(), loadRdv()]);
-	});
+	onMount(() => loadRdv());
+
+	// Recharge les demandes dès que l'utilisateur est connu
+	$: if ($authUser?.id) loadDemandes($authUser.id);
 
 	async function loadRdv() {
 		rdvLoading = true;
@@ -56,9 +58,9 @@
 		return rdvList;
 	})();
 
-	async function loadDemandes() {
+	async function loadDemandes(agentId) {
 		loading = true;
-		const res = await fetch('/api/demandes?agent_id=agent_001');
+		const res = await fetch(`/api/demandes?agent_id=${agentId}`);
 		demandes = await res.json();
 		// Sort: escalated first, then by date desc
 		demandes.sort((a, b) => {
@@ -93,7 +95,7 @@
 <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6">
 	<!-- Welcome + Stats -->
 	<div class="mb-6">
-		<h1 class="font-syne font-bold text-2xl text-gray-800 mb-1">Bonjour, Awa 👋</h1>
+		<h1 class="font-syne font-bold text-2xl text-gray-800 mb-1">Bonjour, {$authUser?.prenom ?? ''} 👋</h1>
 		<p class="text-gray-500 text-sm">Voici l'état de vos demandes assignées.</p>
 	</div>
 
