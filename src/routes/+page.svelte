@@ -95,7 +95,7 @@
 </script>
 
 <svelte:head>
-	<title>CiviCI – {commune?.nom || 'Portail Citoyen'}</title>
+	<title>{commune?.nom_app || 'DigiCommune'} – {commune?.nom || 'Portail Citoyen'}</title>
 </svelte:head>
 
 <!-- HEADER -->
