@@ -1,13 +1,14 @@
 <script>
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { authRole } from '$lib/stores/auth.js';
+	import { authUser, authRole } from '$lib/stores/auth.js';
 	import { commune } from '$lib/stores/commune.js';
 	import BackofficeNav from '$lib/components/BackofficeNav.svelte';
 
 	let escaladeCount = 0;
 
 	onMount(async () => {
+		await authUser.load();
 		if (!$authRole || $authRole !== 'superviseur') {
 			goto('/superviseur/login');
 			return;
