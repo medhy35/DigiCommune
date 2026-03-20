@@ -4,6 +4,7 @@ import {
 	createNotification, batchSecurityLog
 } from '$lib/server/data.js';
 import { registerVerifCode } from '$lib/server/verification.js';
+import { notifierCitoyen } from '$lib/server/notify-citoyen.js';
 
 /** Déduit le rôle de l'auteur d'après son identifiant */
 function resolveRole(par) {
@@ -177,10 +178,12 @@ export async function PATCH({ params, request }) {
 		}
 	}
 
+	const ancienStatut = demande.statut;
 	const updated = await updateDemande(params.id, {
 		statut, agent_id, acte, verification_codes,
 		complement_demande, complement_fourni, escalade, paiement, historique
 	});
 	await batchSecurityLog(secLogs);
+	await notifierCitoyen(updated, ancienStatut, updated.statut);
 	return json(updated);
 }
