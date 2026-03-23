@@ -311,7 +311,7 @@
 </script>
 
 <svelte:head>
-	<title>{id} – Fiche demande – CiviCI</title>
+	<title>{id} – Fiche demande – {commune?.nom_app || 'DigiCommune'}</title>
 </svelte:head>
 
 {#if loading}

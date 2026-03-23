@@ -389,7 +389,7 @@
 </script>
 
 <svelte:head>
-	<title>Guide des démarches – CiviCI</title>
+	<title>Guide des démarches – {$commune?.nom_app || 'DigiCommune'}</title>
 </svelte:head>
 
 <!-- Header -->

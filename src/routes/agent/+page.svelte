@@ -4,6 +4,7 @@
 	import StatusBadge from '$lib/components/StatusBadge.svelte';
 	import { TYPE_ACTE_LABELS, TYPE_ACTE_ICONS, formatDateTime, timeAgo, isEscaladee, isSLADepassee, RDV_STATUT_LABELS, RDV_STATUT_COLORS } from '$lib/utils/helpers.js';
 	import { authUser } from '$lib/stores/auth.js';
+	import { commune } from '$lib/stores/commune.js';
 
 	let demandes = [];
 	let loading = true;
@@ -89,7 +90,7 @@
 </script>
 
 <svelte:head>
-	<title>Tableau de bord Agent – CiviCI</title>
+	<title>Tableau de bord Agent – {$commune?.nom_app || 'DigiCommune'}</title>
 </svelte:head>
 
 <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6">

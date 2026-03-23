@@ -354,7 +354,7 @@
 </script>
 
 <svelte:head>
-	<title>Nouvelle demande – CiviCI</title>
+	<title>Nouvelle demande – {commune?.nom_app || 'DigiCommune'}</title>
 </svelte:head>
 
 <header class="bg-white border-b border-gray-100 shadow-sm sticky top-0 z-40">

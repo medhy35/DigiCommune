@@ -189,7 +189,7 @@
 </script>
 
 <svelte:head>
-	<title>Suivre ma demande – CiviCI</title>
+	<title>Suivre ma demande – {commune?.nom_app || 'DigiCommune'}</title>
 </svelte:head>
 
 <header class="bg-white border-b border-gray-100 shadow-sm">
@@ -209,9 +209,9 @@
 		{/if}
 		<div class="flex items-center gap-2">
 			<div class="w-7 h-7 bg-primary-500 rounded-lg flex items-center justify-center">
-				<span class="text-white font-syne font-bold text-xs">C</span>
+				<span class="text-white font-syne font-bold text-xs">{(commune?.nom_app || 'D')[0].toUpperCase()}</span>
 			</div>
-			<span class="font-syne font-semibold text-primary-600">CiviCI</span>
+			<span class="font-syne font-semibold text-primary-600">{commune?.nom_app || 'DigiCommune'}</span>
 		</div>
 		<span class="text-gray-300">|</span>
 		<span class="text-gray-600 text-sm">Suivi de demande</span>

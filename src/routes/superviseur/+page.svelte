@@ -243,7 +243,7 @@
 </script>
 
 <svelte:head>
-	<title>Superviseur – CiviCI</title>
+	<title>Superviseur – {commune?.nom_app || 'DigiCommune'}</title>
 </svelte:head>
 
 <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6">

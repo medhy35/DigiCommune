@@ -45,7 +45,7 @@
 </script>
 
 <svelte:head>
-	<title>Suivi {numero} – CiviCI</title>
+	<title>Suivi {numero} – {commune?.nom_app || 'DigiCommune'}</title>
 </svelte:head>
 
 <header class="bg-white border-b border-gray-100 shadow-sm">
